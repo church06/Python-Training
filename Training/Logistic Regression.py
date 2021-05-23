@@ -6,6 +6,8 @@ import numpy
 import sklearn.datasets
 
 
+# TODO: 改算法，显示决策边界。
+
 def hwx(w0: float, x_1: float, x_2: float, w1: float, w2: float, w3: float):
     wtx = w0 + w1 * x_1 + w2 * x_2 + w3 * x_1 * x_2
 
