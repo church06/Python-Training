@@ -51,19 +51,12 @@ def nonlinear_regression(train_x: numpy.ndarray, answer: numpy.ndarray, alpha, f
 
         result_list = []
         result_list = numpy.array(result_list)
-        hwx_res = 0
-
-        x = 0
-        y = 0
 
         for index in range(0, m):
             hwx_res = hwx(w0, train_x[index, 1], train_x[index, 3], w1, w2, w3)
 
             result += (1 / (index + 1)) * cost(answer[i], hwx_res)
             result_list = numpy.append(result_list, hwx_res)
-
-            x = hwx_res
-            y = answer[index]
 
             w1 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 1], 1)
             w2 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 3], 1)
@@ -73,10 +66,10 @@ def nonlinear_regression(train_x: numpy.ndarray, answer: numpy.ndarray, alpha, f
 
         plt.clf()
         plt.scatter(train_x[:, 1], train_x[:, 3])
-        draw = numpy.sort(train_x[:, 1], axis=0, kind='mergesort')
+
         print(result_list)
 
-        plt.plot(draw, result_list, color='r')
+        plt.plot(result_list, color='r')
         plt.pause(0.01)
 
 
