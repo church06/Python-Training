@@ -3,6 +3,7 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy
+import pandas
 import sklearn.datasets
 from numpy import ndarray
 
@@ -31,15 +32,9 @@ def accuracy(boolean_results: ndarray):
     return counter_true / boolean_results.size
 
 
-def loss(x: list, y: list, fetch: int, alpha: float, test_x: list, test_y: list):
+def loss(x: numpy.ndarray, y: numpy.ndarray, fetch: int, alpha: float, test_x: numpy.ndarray, test_y: numpy.ndarray):
     w1 = random.uniform(0.0, 10)
     w0 = random.uniform(0.0, 10)
-
-    x = numpy.array(x)
-    y = numpy.array(y)
-
-    numpy.array(test_x)
-    numpy.array(test_y)
 
     results = []
     numpy.array(results)
@@ -60,7 +55,7 @@ def loss(x: list, y: list, fetch: int, alpha: float, test_x: list, test_y: list)
                     counter += 1
 
                 y_lin = hwx(w1, x[i], w0)
-                total += math.pow(y[i] - y_lin, 2)
+                total += (1 / (2*m)) * math.pow(y[i] - y_lin, 2)
 
                 w1 = w1 + alpha * (y[i] - y_lin) * x[i]
                 w0 = w0 + alpha * (y[i] - y_lin)
@@ -76,13 +71,20 @@ def loss(x: list, y: list, fetch: int, alpha: float, test_x: list, test_y: list)
 
 
 # =========================================================================================
-file = sklearn.datasets.load_iris()
+file = sklearn.datasets.load_boston()
 
 data = file.data
-train_x = data[:120, 0]
-train_y = data[:120, 2]
+target = file.target
 
-test_x = data[120:, 0]
-test_y = data[120:, 2]
+train_data = pandas.DataFrame(data, columns=file['feature_names'])
+train_target = pandas.DataFrame(target, columns=['MEDV'])
+
+train_data = numpy.array(train_data['CRIM'])
+
+train_x = train_data.reshape(train_data.size, 1)[:400, 0]
+train_y = numpy.array(train_target)[:400, 0]
+
+test_x = train_data.reshape(train_data.size, 1)[400:, 0]
+test_y = numpy.array(train_target)[:400, 0]
 
 loss(train_x, train_y, 1000, 0.001, test_x, test_y)

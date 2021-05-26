@@ -8,10 +8,10 @@ import sklearn.datasets
 
 # TODO: 改算法，显示决策边界。
 
-def hwx(w0: float, x_1: float, x_2: float, w1: float, w2: float, w3: float):
-    wtx = w0 + w1 * x_1 + w2 * x_2 + w3 * x_1 * x_2
+def hwx(w0: float, x_1: float, x_2: float, w1: float, w2: float, w3: float, w4: float):
+    wtx = w0 + w1 * x_1 + w2 * x_2 + w3 * math.pow(x_1, 2) + w4 * math.pow(x_2, 2)
 
-    return sigmoid(wtx)
+    return wtx
 
 
 def sigmoid(z: float):
@@ -43,35 +43,39 @@ def cost(y, hw_x):
 def nonlinear_regression(train_x: numpy.ndarray, answer: numpy.ndarray, alpha, fetch):
     m = train_x[:, 0].size
 
-    w0 = 1
-    w1 = random.uniform(1, 5)
-    w2 = random.uniform(1, 5)
-    w3 = random.uniform(1, 5)
+    w0 = random.uniform(0, 1)
+    w1 = random.uniform(0, 1)
+    w2 = random.uniform(0, 1)
+    w3 = random.uniform(0, 1)
+    w4 = random.uniform(0, 1)
 
     for f in range(0, fetch):
         result = 0
 
-        result_list = []
-        result_list = numpy.array(result_list)
+        result_1 = numpy.array([])
 
         for index in range(0, m):
-            hwx_res = hwx(w0, train_x[index, 1], train_x[index, 3], w1, w2, w3)
+            hwx_res = hwx(w0, train_x[index, 1], train_x[index, 3], w1, w2, w3, w4)
 
-            result += (1 / (index + 1)) * cost(answer[i], hwx_res)
-            result_list = numpy.append(result_list, hwx_res)
+            result_1 = numpy.append(result_1, hwx_res)
+            hwx_res = sigmoid(hwx_res)
 
+            lost = cost(answer[i], hwx_res)
+
+            result += (1 / (index + 1)) * lost
+
+            w0 = gradient_descent(w0, alpha, answer[index], hwx_res, 1, 0)
             w1 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 1], 1)
-            w2 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 3], 1)
-            w3 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 1] * train_x[index, 3], 1)
+            w2 = gradient_descent(w2, alpha, answer[index], hwx_res, train_x[index, 3], 1)
+            w3 = gradient_descent(w3, alpha, answer[index], hwx_res, train_x[index, 1], 2)
+            w4 = gradient_descent(w4, alpha, answer[index], hwx_res, train_x[index, 3], 2)
 
-        print("fetch: ", f, " w1: ", w1, " w2: ", w2, "w3: ", w3)
+        print("fetch: ", f, " w1: ", w1, " w2: ", w2, "w3: ", w3, "w4: ", w4, "lose: ", result)
 
         plt.clf()
         plt.scatter(train_x[:, 1], train_x[:, 3])
 
-        print(result_list)
-
-        plt.plot(result_list, color='r')
+        plt.plot(result_1, result_1, color='r')
         plt.pause(0.01)
 
 
@@ -113,9 +117,9 @@ trans_ans = []
 trans_ans = numpy.array(trans_ans)
 
 for i in target:
-    if i == 1:
-        trans_ans = numpy.append(trans_ans, i)
-    else:
+    if i == 0:
         trans_ans = numpy.append(trans_ans, 0)
+    else:
+        trans_ans = numpy.append(trans_ans, 1)
 
-nonlinear_regression(train_x=data, answer=trans_ans, alpha=0.001, fetch=1000)
+nonlinear_regression(train_x=data, answer=trans_ans, alpha=0.00001, fetch=200)
