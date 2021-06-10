@@ -29,7 +29,10 @@ def gradient_descent(w: float, alpha: float, y: float, hwx: float, x: float, sqr
 
 def cost(y, hw_x):
     if y == 1:
-        output = - math.log(hw_x, 2)
+        if hw_x != 0:
+            output = - math.log(hw_x, 2)
+        else:
+            return 0
 
     else:
         if hw_x == 1:
@@ -43,7 +46,7 @@ def cost(y, hw_x):
 def nonlinear_regression(train_x: numpy.ndarray, answer: numpy.ndarray, alpha, fetch):
     m = train_x[:, 0].size
 
-    w0 = random.uniform(0, 1)
+    w0 = 1 - numpy.max(train_x)
     w1 = random.uniform(0, 1)
     w2 = random.uniform(0, 1)
     w3 = random.uniform(0, 1)
@@ -64,7 +67,7 @@ def nonlinear_regression(train_x: numpy.ndarray, answer: numpy.ndarray, alpha, f
 
             result += (1 / (index + 1)) * lost
 
-            w0 = gradient_descent(w0, alpha, answer[index], hwx_res, 1, 0)
+            w0 = gradient_descent(w0, alpha, answer[index], hwx_res, train_x[index, 1], 0)
             w1 = gradient_descent(w1, alpha, answer[index], hwx_res, train_x[index, 1], 1)
             w2 = gradient_descent(w2, alpha, answer[index], hwx_res, train_x[index, 3], 1)
             w3 = gradient_descent(w3, alpha, answer[index], hwx_res, train_x[index, 1], 2)
@@ -122,4 +125,21 @@ for i in target:
     else:
         trans_ans = numpy.append(trans_ans, 1)
 
-nonlinear_regression(train_x=data, answer=trans_ans, alpha=0.00001, fetch=200)
+switch = 1
+
+if switch == 1:
+    x1_0 = iris_0[:, 1]
+    x2_0 = iris_0[:, 3]
+
+    x1_1 = iris_1[:, 1]
+    x2_1 = iris_1[:, 3]
+
+    x1_2 = iris_2[:, 1]
+    x2_2 = iris_2[:, 3]
+
+    plt.scatter(x1_0, x2_0, color='r')
+    plt.scatter(x1_1, x2_1, color='g')
+    plt.scatter(x1_2, x2_2, color='b')
+
+else:
+    nonlinear_regression(train_x=data, answer=trans_ans, alpha=0.000000000001, fetch=200)
