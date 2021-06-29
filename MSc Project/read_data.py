@@ -1,8 +1,16 @@
-subjects = {'s1': 'data/Subject1.h5',
-            's2': 'data/Subject2.h5',
-            's3': 'data/Subject3.h5',
-            's4': 'data/Subject4.h5',
-            's5': 'data/Subject5.h5'}
+import os.path
+
+import bdpy.bdata
+import h5py
+import numpy
+from bdpy.bdata import concat_dataset
+
+subjects = {'s1': os.path.abspath('data/Subject1.h5'),
+            's2': os.path.abspath('data/Subject2.h5'),
+            's3': os.path.abspath('data/Subject3.h5'),
+            's4': os.path.abspath('data/Subject4.h5'),
+            's5': os.path.abspath('data/Subject5.h5'),
+            'imageFeature': os.path.abspath('data/ImageFeatures.h5')}
 
 regine_of_interest = {'VC': 'ROI_VC = 1',
                       'LVC': 'ROI_LVC = 1',
@@ -27,3 +35,29 @@ voxel = {'VC': 1000,
          'PPA': 500}
 
 Image_Feature = 'data/ImageFeatures.h5'
+
+print('=======================================')
+print('Data loading...')
+
+data = {}
+keys = {}
+image_feature = {}
+
+for person in subjects:
+
+    file = h5py.File(subjects[person], 'r')
+
+    if len(subjects[person]) == 1 and person != 's2' and person != 'imageFeature':
+
+        print(person, '---------------------')
+        print('data: ', file.keys())
+
+        data[person] = bdpy.BData(subjects[person][0])
+
+    else:
+        # Subject2 & image feature
+        if person == 'imageFeature':
+            image_feature = file.keys()
+
+
+print(data)
