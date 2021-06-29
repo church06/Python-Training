@@ -1,9 +1,6 @@
 import os.path
 
-import bdpy.bdata
 import h5py
-import numpy
-from bdpy.bdata import concat_dataset
 
 subjects = {'s1': os.path.abspath('data/Subject1.h5'),
             's2': os.path.abspath('data/Subject2.h5'),
@@ -47,17 +44,18 @@ for person in subjects:
 
     file = h5py.File(subjects[person], 'r')
 
-    if len(subjects[person]) == 1 and person != 's2' and person != 'imageFeature':
+    if person != 's2' and person != 'imageFeature':
 
         print(person, '---------------------')
         print('data: ', file.keys())
 
-        data[person] = bdpy.BData(subjects[person][0])
+        data[person] = file['dataset']
 
     else:
         # Subject2 & image feature
         if person == 'imageFeature':
-            image_feature = file.keys()
-
+            print(file.keys())
+            image_feature = file['dataSet']
 
 print(data)
+print(image_feature)
