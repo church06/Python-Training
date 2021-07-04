@@ -6,6 +6,11 @@ import h5py
 import keras
 import numpy
 import numpy as np
+import tensorflow.keras.layers
+
+from bdpy.ml import add_bias
+from bdpy.preproc import select_top
+from bdpy.stats import corrcoef
 
 
 def main():
@@ -76,11 +81,11 @@ def data_prepare(subject, rois, img_feature, voxel, layers):
     print('Start learning:')
     print('-----------------')
 
-    for sbj, roi, feature in product(subject, rois, layers):
+    for sbj, roi, layer in product(subject, rois, layers):
         print('Subject:    %s' % sbj)
         print('ROI:        %s' % roi)
         print('Num voxels: %d' % voxel[roi])
-        print('Feature:    %s' % feature)
+        print('Layer:    %s' % layer)
         print('===============================')
 
         # ---------------------------------------------
@@ -103,16 +108,14 @@ def data_prepare(subject, rois, img_feature, voxel, layers):
         data_type = data.select('DataType')  # Mark the training data, seen data and imagine data
         labels = data.select('stimulus_id')  # Use Stimulus ID as the order to sort images
 
-        # select image for y
-        y = img_feature.select(feature)
-        y_label = img_feature.select('ImageID')
+        y = img_feature.select(layer)  # select the image feature which be marked layers[layer]
+        y_label = img_feature.select('ImageID')  # get image id
 
-        # sort through the y in y_label of labels
+        # sort through the y in y_label of labels, correspond with brain data
         y_sort = bdpy.get_refdata(y, y_label, labels)  # labels -> y_label -> y
 
         # Flatten(): transfer the shape from vertical to horizontal
         label_train = (data_type == 1).flatten()  # mark of training data
-
         label_test_seen = (data_type == 2).flatten()  # Index for subject see an image
         label_test_img = (data_type == 3).flatten()  # Index for subject imagine an image
 
@@ -129,17 +132,23 @@ def data_prepare(subject, rois, img_feature, voxel, layers):
 
         print('Predicting...')
 
-        predict_y, real_y = algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel=500)
+        predict_y, real_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
+                                                      x_test=x_test, y_test=y_test,
+                                                      num_voxel=500)
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
-    n_unit = y_train.shape(1)
+    n_unit = y_train.shape[1]
 
     print('Data normalizing...')
 
+    # compute average of each column and return a (1, n) matrix
     nom_mean_x = np.mean(x_train, axis=0)
+
+    # compute standard deviation of each column in x and return a (1, n) matrix
     nom_scale_x = np.std(x_train, axis=0, ddof=1)
 
+    # normalize x
     x_train = (x_train - nom_mean_x) / nom_scale_x
     x_test = (x_test - nom_mean_x) / nom_scale_x
 
@@ -153,6 +162,35 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     for i in range(n_unit):
         print('Loop %03d' % (i + 1))
 
+        # Get unit
+        y_train_unit = y_train[:, i]
+        y_test_unit = y_test[:, i]
+
+        norm_mean_y = np.mean(y_train_unit, axis=0)
+        std_y = np.std(y_train_unit, axis=0, ddof=1)
+
+        norm_scale_y = None
+
+        if std_y == 0:
+            norm_scale_y = 1
+        else:
+            norm_scale_y = std_y
+
+        y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
+
+        # select the voxel in column
+        correlation = corrcoef(y_train_unit, x_train, var='col')
+
+        x_train_unit, voxel_index = select_top(x_train, np.abs(correlation), num_voxel, axis=1, verbose=False)
+        x_test_unit = x_test[:, voxel_index]
+
+        # Add bias terms
+        x_train_unit = add_bias(x_train_unit, axis=1)
+        x_test_unit = add_bias(x_test_unit, axis=1)
+
+        model = tensorflow.keras.Sequential(
+            tensorflow.keras.layer.Conv2D()
+        )
 
 # =========================================================================
 
