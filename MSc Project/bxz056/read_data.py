@@ -4,14 +4,12 @@ from itertools import product
 
 import bdpy
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow
+import tensorflow.keras as keras
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
-from matplotlib import pyplot as plt
-from tensorflow.keras.layers import Conv2D, MaxPooling2D
-from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
@@ -90,40 +88,26 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         print('Num voxels: %d' % voxel[roi])
         print('Layers:    %s' % layer)
 
+        data = subject[sbj]
         # ---------------------------------------------
 
-        # Subject {'s1': [...],
-        #          's2': [...],
-        #               ...
-        #          's5': [...]}
-
-        data = subject[sbj]  # data = 's1': [...]
-        # ---------------------------------------------
-
-        # rois: {'VC': 'ROI_VC = 1',
-        #        'LVC': 'ROI_LVC = 1',
-        #           ...
-        #        'PPA': 'ROI_PPA = 1'}
-
-        x = data.select(rois[roi])  # x = 'ROI_VC = 1' if roi = 'VC
+        x = data.select(rois[roi])
         # --------------------------------------------
 
-        # get data type in subject fMRI
-        data_type = data.select('DataType')  # Mark the training data, seen data and imagine data
-        labels = data.select('stimulus_id')  # Use Stimulus ID as the order to sort images
+        data_type = data.select('DataType')
+        labels = data.select('stimulus_id')
 
-        y = img_feature.select(layer)  # select the image feature which be marked layers[layer]
-        y_label = img_feature.select('ImageID')  # get image id
+        y = img_feature.select(layer)
+        y_label = img_feature.select('ImageID')
 
-        # sort through the y in y_label of labels, correspond with brain data
         y_sort = bdpy.get_refdata(y, y_label, labels)  # labels -> y_label -> y
 
         # Flatten(): transfer the shape from vertical to horizontal
-        i_train = (data_type == 1).flatten()  # mark of training data
-        i_test_seen = (data_type == 2).flatten()  # Index for subject see an image
-        i_test_img = (data_type == 3).flatten()  # Index for subject imagine an image
+        i_train = (data_type == 1).flatten()
+        i_test_seen = (data_type == 2).flatten()
+        i_test_img = (data_type == 3).flatten()
 
-        # test data, overlap seen and imagined value
+        # test data, add seen and imagined data together
         i_test = i_test_img + i_test_seen
 
         # get training & test data in x
@@ -134,14 +118,9 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         y_train = y_sort[i_train, :]
         y_test = y_sort[i_test, :]
 
-        print('Predicting...')
-
-        predict_y, real_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
-                                                      x_test=x_test, y_test=y_test,
-                                                      num_voxel=voxel[roi])
-
-        print('Predicted:    %s' % predict_y)
-        print('Real:         %s' % real_y)
+        algorithm_predict_feature(x_train=x_train, y_train=y_train,
+                                  x_test=x_test, y_test=y_test,
+                                  num_voxel=voxel[roi])
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
@@ -156,8 +135,7 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     x_train = (x_train - norm_mean_x) / norm_scale_x
     x_test = (x_test - norm_mean_x) / norm_scale_x
 
-    y_true_list = []
-    y_predict_list = []
+    loss = np.array([])
 
     print('Loop start...')
 
@@ -173,7 +151,7 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
 
         y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
 
-        # select the voxel in column
+        # correlate with y and x
         correlation = corrcoef(y_train_unit, x_train, var='col')
 
         x_train_unit, voxel_index = select_top(x_train, np.abs(correlation), num_voxel, axis=1, verbose=False)
@@ -183,47 +161,44 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
         x_train_unit = add_bias(x_train_unit, axis=1)
         x_test_unit = add_bias(x_test_unit, axis=1)
 
-        print('x_train: ', x_train_unit.shape)
-        print('x_test: ', x_test_unit.shape)
-        print('y_train: ', y_train_unit.shape)
-        print('y_test: ', y_test_unit.shape)
+        print('x_train_unit: ', x_train_unit.shape)
+        print('x_test_unit: ', x_test_unit.shape)
+
+        # Training dataset shape
+        x_axis_train_x = x_train_unit.shape[0]
+        y_axis_train_x = x_train_unit.shape[1]
+
+        # Test dataset shape
+        x_axis_test_x = x_test_unit.shape[0]
+        y_axis_test_x = x_test_unit.shape[1]
+
+        # Reshape for Conv1D
+        x_train_unit = x_train_unit.reshape(x_axis_train_x, y_axis_train_x, 1, 1)
+        x_test_unit = x_test_unit.reshape(x_axis_test_x, y_axis_test_x, 1, 1)
 
         # define the neural network architecture (convolutional net)
         model = Sequential()
 
-        model.add(
-            Conv2D(filters=10,
-                   kernel_size=(3, 3),
-                   activation='linear',
-                   input_shape=(1200, 1001, 0, 0),
-                   padding='same'))
+        model.add(keras.layers.Conv1D(filters=1,
+                                      kernel_size=1001,
+                                      input_shape=(1001, 1),
+                                      padding='valid',
+                                      ))
+        model.add(keras.layers.LeakyReLU(alpha=0.1))
+        model.add(keras.layers.AveragePooling1D(1, padding='same'))
 
-        model.add(LeakyReLU(alpha=0.1))
-        model.add(MaxPooling2D((4, 4), padding='same'))
-
-        optimizer = Adam(learning_rate=0.0001)
-        loss = tensorflow.keras.losses.categorical_crossentropy
+        optimizer = Adam(learning_rate=0.000000000000000000000000000000000000000000000000000001)
+        loss = keras.losses.categorical_crossentropy
 
         model.compile(optimizer, loss)
 
         # Training and test
         model.fit(x_train_unit, y_train_unit)  # Training
+        model.predict(x_test_unit)  # Test
         model.summary()
-        y_pred = model.predict(x_test_unit)  # Test
 
-        # Denormalize predicted features
-        y_pred = y_pred * norm_scale_y + norm_mean_y
+        plt.clf()
 
-        y_true_list.append(y_test_unit)
-        y_predict_list.append(y_pred)
-
-        print('Loop %03d   Loss:    %s' % ((i + 1), loss))
-
-    # Create numpy arrays for return values
-    y_predicted = np.vstack(y_predict_list).T
-    y_true = np.vstack(y_true_list).T
-
-    return y_predicted, y_true
 
 
 # =========================================================================
