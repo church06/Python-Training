@@ -6,7 +6,9 @@ import bdpy
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import tensorflow.keras as keras
+from bdpy import get_refdata
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
@@ -118,9 +120,55 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         y_train = y_sort[i_train, :]
         y_test = y_sort[i_test, :]
 
-        algorithm_predict_feature(x_train=x_train, y_train=y_train,
-                                  x_test=x_test, y_test=y_test,
-                                  num_voxel=voxel[roi])
+        true_y, pred_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
+                                                   x_test=x_test, y_test=y_test,
+                                                   num_voxel=voxel[roi])
+
+        i_pt = i_test_seen[i_test]  # Index for perception test within test
+        i_im = i_test_img[i_test]  # Index for imagery test within test
+
+        pred_y_pt = pred_y[i_pt, :]
+        pred_y_im = pred_y[i_im, :]
+
+        true_y_pt = true_y[i_pt, :]
+        true_y_im = true_y[i_im, :]
+
+        # Get averaged predicted feature
+        test_label_pt = labels[i_test_seen, :].flatten()
+        test_label_im = labels[i_test_img, :].flatten()
+
+        pred_y_pt_av, true_y_pt_av, test_label_set_pt \
+            = get_averaged_feature(pred_y_pt, true_y_pt, test_label_pt)
+        pred_y_im_av, true_y_im_av, test_label_set_im \
+            = get_averaged_feature(pred_y_im, true_y_im, test_label_im)
+
+        # Get category averaged features
+        catlabels_pt = np.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
+        catlabels_im = np.vstack([int(n) for n in test_label_im])  # Category labels (imagery test)
+        catlabels_set_pt = np.unique(catlabels_pt)  # Category label set (perception test)
+        catlabels_set_im = np.unique(catlabels_im)  # Category label set (imagery test)
+
+        y_catlabels = img_feature.select('CatID')  # Category labels in image features
+        ind_catave = (img_feature.select('FeatureType') == 3).flatten()
+
+        y_catave_pt = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_pt)
+        y_catave_im = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_im)
+
+        # Prepare result dataframe
+        results = pd.DataFrame({'subject': [sbj, sbj],
+                                'roi': [roi, roi],
+                                'feature': [layer, layer],
+                                'test_type': ['perception', 'imagery'],
+                                'true_feature': [true_y_pt, true_y_im],
+                                'predicted_feature': [pred_y_pt, pred_y_im],
+                                'test_label': [test_label_pt, test_label_im],
+                                'test_label_set': [test_label_set_pt, test_label_set_im],
+                                'true_feature_averaged': [true_y_pt_av, true_y_im_av],
+                                'predicted_feature_averaged': [pred_y_pt_av, pred_y_im_av],
+                                'category_label_set': [catlabels_set_pt, catlabels_set_im],
+                                'category_feature_averaged': [y_catave_pt, y_catave_im]})
+
+        print(results)
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
@@ -135,7 +183,8 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     x_train = (x_train - norm_mean_x) / norm_scale_x
     x_test = (x_test - norm_mean_x) / norm_scale_x
 
-    loss = np.array([])
+    y_true_list = []
+    y_pred_list = []
 
     print('Loop start...')
 
@@ -161,20 +210,17 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
         x_train_unit = add_bias(x_train_unit, axis=1)
         x_test_unit = add_bias(x_test_unit, axis=1)
 
-        print('x_train_unit: ', x_train_unit.shape)
-        print('x_test_unit: ', x_test_unit.shape)
-
         # Training dataset shape
-        x_axis_train_x = x_train_unit.shape[0]
-        y_axis_train_x = x_train_unit.shape[1]
+        x_axis_0 = x_train_unit.shape[0]
+        x_axis_1 = x_train_unit.shape[1]
 
         # Test dataset shape
-        x_axis_test_x = x_test_unit.shape[0]
-        y_axis_test_x = x_test_unit.shape[1]
+        xt_axis_0 = x_test_unit.shape[0]
+        xt_axis_1 = x_test_unit.shape[1]
 
         # Reshape for Conv1D
-        x_train_unit = x_train_unit.reshape(x_axis_train_x, y_axis_train_x, 1, 1)
-        x_test_unit = x_test_unit.reshape(x_axis_test_x, y_axis_test_x, 1, 1)
+        x_train_unit = x_train_unit.reshape(x_axis_0, x_axis_1, 1, 1)
+        x_test_unit = x_test_unit.reshape(xt_axis_0, xt_axis_1, 1, 1)
 
         # define the neural network architecture (convolutional net)
         model = Sequential()
@@ -184,21 +230,38 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
                                       input_shape=(1001, 1),
                                       padding='valid',
                                       ))
-        model.add(keras.layers.LeakyReLU(alpha=0.1))
         model.add(keras.layers.AveragePooling1D(1, padding='same'))
 
-        optimizer = Adam(learning_rate=0.000000000000000000000000000000000000000000000000000001)
+        optimizer = Adam(learning_rate=0.00000000000001)
         loss = keras.losses.categorical_crossentropy
 
         model.compile(optimizer, loss)
 
         # Training and test
         model.fit(x_train_unit, y_train_unit)  # Training
-        model.predict(x_test_unit)  # Test
-        model.summary()
+        y_pred = model.predict(x_test_unit)  # Test
 
-        plt.clf()
+        y_pred = y_pred * norm_scale_y + norm_mean_y
 
+        y_true_list.append(y_test_unit)
+        y_pred_list.append(y_pred)
+
+    # Create numpy arrays for return values
+    y_predicted = np.vstack(y_pred_list).T
+    y_true = np.vstack(y_true_list).T
+
+    return y_predicted, y_true
+
+
+def get_averaged_feature(pred_y, true_y, labels):
+    """Return category-averaged features"""
+
+    labels_set = np.unique(labels)
+
+    pred_y_av = np.array([np.mean(pred_y[labels == c, :], axis=0) for c in labels_set])
+    true_y_av = np.array([np.mean(true_y[labels == c, :], axis=0) for c in labels_set])
+
+    return pred_y_av, true_y_av, labels_set
 
 
 # =========================================================================
