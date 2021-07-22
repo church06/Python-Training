@@ -5,6 +5,7 @@ from itertools import product
 import bdpy
 import h5py
 import matplotlib.pyplot as plt
+import numpy
 import numpy as np
 import pandas as pd
 import tensorflow.keras as keras
@@ -12,12 +13,13 @@ from bdpy import get_refdata
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
+from sklearn.metrics import plot_confusion_matrix
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
 
 def main():
-    subjects = {'s1': os.path.abspath('bxz056/data/Subject1.h5'),
+    subjects = {'s1_layers': os.path.abspath('bxz056/data/Subject1.h5'),
                 's2': os.path.abspath('bxz056/data/Subject2.h5'),
                 's3': os.path.abspath('bxz056/data/Subject3.h5'),
                 's4': os.path.abspath('bxz056/data/Subject4.h5'),
@@ -120,61 +122,13 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         y_train = y_sort[i_train, :]
         y_test = y_sort[i_test, :]
 
-        true_y, pred_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
-                                                   x_test=x_test, y_test=y_test,
-                                                   num_voxel=voxel[roi])
-
-        i_pt = i_test_seen[i_test]  # Index for perception test within test
-        i_im = i_test_img[i_test]  # Index for imagery test within test
-
-        pred_y_pt = pred_y[i_pt, :]
-        pred_y_im = pred_y[i_im, :]
-
-        true_y_pt = true_y[i_pt, :]
-        true_y_im = true_y[i_im, :]
-
-        # Get averaged predicted feature
-        test_label_pt = labels[i_test_seen, :].flatten()
-        test_label_im = labels[i_test_img, :].flatten()
-
-        pred_y_pt_av, true_y_pt_av, test_label_set_pt \
-            = get_averaged_feature(pred_y_pt, true_y_pt, test_label_pt)
-        pred_y_im_av, true_y_im_av, test_label_set_im \
-            = get_averaged_feature(pred_y_im, true_y_im, test_label_im)
-
-        # Get category averaged features
-        catlabels_pt = np.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
-        catlabels_im = np.vstack([int(n) for n in test_label_im])  # Category labels (imagery test)
-        catlabels_set_pt = np.unique(catlabels_pt)  # Category label set (perception test)
-        catlabels_set_im = np.unique(catlabels_im)  # Category label set (imagery test)
-
-        y_catlabels = img_feature.select('CatID')  # Category labels in image features
-        ind_catave = (img_feature.select('FeatureType') == 3).flatten()
-
-        y_catave_pt = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_pt)
-        y_catave_im = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_im)
-
-        # Prepare result dataframe
-        results = pd.DataFrame({'subject': [sbj, sbj],
-                                'roi': [roi, roi],
-                                'feature': [layer, layer],
-                                'test_type': ['perception', 'imagery'],
-                                'true_feature': [true_y_pt, true_y_im],
-                                'predicted_feature': [pred_y_pt, pred_y_im],
-                                'test_label': [test_label_pt, test_label_im],
-                                'test_label_set': [test_label_set_pt, test_label_set_im],
-                                'true_feature_averaged': [true_y_pt_av, true_y_im_av],
-                                'predicted_feature_averaged': [pred_y_pt_av, pred_y_im_av],
-                                'category_label_set': [catlabels_set_pt, catlabels_set_im],
-                                'category_feature_averaged': [y_catave_pt, y_catave_im]})
-
-        print(results)
+        algorithm_predict_feature(x_train=x_train, y_train=y_train,
+                                  x_test=x_test, y_test=y_test,
+                                  num_voxel=voxel[roi])
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     print('--------------------- Start predicting')
-
-    n_unit = y_train.shape[1]
 
     # Normalize brian data (x)
     norm_mean_x = np.mean(x_train, axis=0)
@@ -183,74 +137,87 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     x_train = (x_train - norm_mean_x) / norm_scale_x
     x_test = (x_test - norm_mean_x) / norm_scale_x
 
-    y_true_list = []
-    y_pred_list = []
-
     print('Loop start...')
 
-    for i in range(n_unit):
-        # Get unit
-        y_train_unit = y_train[:, i]
-        y_test_unit = y_test[:, i]
+    # Normalize image features for training (y_train_unit)
+    norm_mean_y = np.mean(y_train, axis=0)
+    std_y = np.std(y_train, axis=0, ddof=1)
 
-        # Normalize image features for training (y_train_unit)
-        norm_mean_y = np.mean(y_train_unit, axis=0)
-        std_y = np.std(y_train_unit, axis=0, ddof=1)
-        norm_scale_y = 1 if std_y == 0 else std_y
+    norm_scale_y = numpy.array([])
 
-        y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
+    for i in std_y:
+        if i == 0:
+            norm_scale_y = numpy.append(norm_scale_y, 1)
+        else:
+            norm_scale_y = numpy.append(norm_scale_y, i)
 
-        # correlate with y and x
-        correlation = corrcoef(y_train_unit, x_train, var='col')
+    y_train = (y_train - norm_mean_y) / norm_scale_y
 
-        x_train_unit, voxel_index = select_top(x_train, np.abs(correlation), num_voxel, axis=1, verbose=False)
-        x_test_unit = x_test[:, voxel_index]
+    # correlate with y and x
+    correlation = corrcoef(y_train[:, 0], x_train, var='col')
 
-        # Add bias terms
-        x_train_unit = add_bias(x_train_unit, axis=1)
-        x_test_unit = add_bias(x_test_unit, axis=1)
+    x_train, voxel_index = select_top(x_train, np.abs(correlation), num_voxel, axis=1, verbose=False)
+    x_test = x_test[:, voxel_index]
 
-        # Training dataset shape
-        x_axis_0 = x_train_unit.shape[0]
-        x_axis_1 = x_train_unit.shape[1]
+    # Add bias terms
+    # x_train = add_bias(x_train, axis=1)
+    # x_test = add_bias(x_test, axis=1)
 
-        # Test dataset shape
-        xt_axis_0 = x_test_unit.shape[0]
-        xt_axis_1 = x_test_unit.shape[1]
+    # Training dataset shape
+    x_axis_0 = x_train.shape[0]
+    x_axis_1 = x_train.shape[1]
 
-        # Reshape for Conv1D
-        x_train_unit = x_train_unit.reshape(x_axis_0, x_axis_1, 1, 1)
-        x_test_unit = x_test_unit.reshape(xt_axis_0, xt_axis_1, 1, 1)
+    # Test dataset shape
+    xt_axis_0 = x_test.shape[0]
 
-        # define the neural network architecture (convolutional net)
-        model = Sequential()
+    print('x_train: ', x_train.shape)
+    print('x_test: ', x_test.shape)
 
-        model.add(keras.layers.Conv1D(filters=1,
-                                      kernel_size=1001,
-                                      input_shape=(1001, 1),
-                                      padding='valid',
-                                      ))
-        model.add(keras.layers.AveragePooling1D(1, padding='same'))
+    # Reshape for Conv1D
+    if x_train.shape[1] == 1000:
+        x_train = x_train.reshape(x_axis_0, 40, 25, 1)
+        x_test = x_test.reshape(xt_axis_0, 40, 25, 1)
+    else:
+        x_train = x_train.reshape(x_axis_0, 32, 32, 1)
+        x_test = x_test.reshape(xt_axis_0, 32, 32, 1)
 
-        optimizer = Adam(learning_rate=0.00000000000001)
-        loss = keras.losses.categorical_crossentropy
+    print('after reshape x_train: ', x_train.shape)
+    print('after reshape x_test: ', x_test.shape)
+    print('y_train: ', y_train.shape)
+    print('y_test: ', y_test.shape)
 
-        model.compile(optimizer, loss)
+    layer_axis_0 = x_train.shape[1]
+    layer_axis_1 = x_train.shape[2]
 
-        # Training and test
-        model.fit(x_train_unit, y_train_unit)  # Training
-        y_pred = model.predict(x_test_unit)  # Test
+    # define the neural network architecture (convolutional net)
+    model = Sequential()
 
-        y_pred = y_pred * norm_scale_y + norm_mean_y
+    model.add(keras.layers.Conv2D(filters=8,
+                                  input_shape=(layer_axis_0, layer_axis_1, 1),
+                                  kernel_size=3
+                                  ))
+    model.add(keras.layers.MaxPool2D((layer_axis_0, layer_axis_1), padding='same'))
 
-        y_true_list.append(y_test_unit)
-        y_pred_list.append(y_pred)
+    model.add(keras.layers.Dense(1000, activation='softmax'))
 
-    # Create numpy arrays for return values
-    y_predicted = np.vstack(y_pred_list).T
-    y_true = np.vstack(y_true_list).T
+    optimizer = Adam(learning_rate=0.000000000000000001)
+    loss = keras.losses.mean_squared_error
 
-    return y_predicted, y_true
+    model.compile(optimizer, loss, metrics=['accuracy'])
+
+    # Training and test
+    model.fit(x_train, y_train, epochs=15)  # Training
+    y_pred_list = model.predict(x_test)  # Test
+
+    y_pred_list = y_pred_list * norm_scale_y + norm_mean_y
+
+    print('y_pred_list: ', y_pred_list.shape)
+    print(y_test.shape)
+
+    bias_list = numpy.array([])
+
+    y_pred_list = y_pred_list.reshape(y_test.shape[0], y_test.shape[1])
+    print('y_pred_list after reshape: ', y_pred_list.shape)
 
 
 def get_averaged_feature(pred_y, true_y, labels):
