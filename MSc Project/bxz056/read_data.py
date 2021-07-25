@@ -4,22 +4,17 @@ from itertools import product
 
 import bdpy
 import h5py
-import matplotlib.pyplot as plt
 import numpy
 import numpy as np
-import pandas as pd
 import tensorflow.keras as keras
-from bdpy import get_refdata
-from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
-from sklearn.metrics import plot_confusion_matrix
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 
 
 def main():
-    subjects = {'s1_layers': os.path.abspath('bxz056/data/Subject1.h5'),
+    subjects = {'s1': os.path.abspath('bxz056/data/Subject1.h5'),
                 's2': os.path.abspath('bxz056/data/Subject2.h5'),
                 's3': os.path.abspath('bxz056/data/Subject3.h5'),
                 's4': os.path.abspath('bxz056/data/Subject4.h5'),
@@ -58,13 +53,14 @@ def main():
     dataset = {}
     image_feature = {}
 
+    file = None
+
     for person in subjects:
 
         file = h5py.File(subjects[person], 'r')
 
         if person != 'imageFeature':
             # Subject 1 ~ 5
-
             print(person, '---------------------')
             print('data: ', file.keys())
 
@@ -73,8 +69,20 @@ def main():
         else:
             image_feature = bdpy.BData(subjects[person])
 
-    # dataset & metadata collected
+    file.close()
 
+    print('--------------------- data ')
+    print('s1: %s\n'
+          's2: %s\n'
+          's3: %s\n'
+          's4: %s\n'
+          's5: %s' % (dataset['s1'].dataset.shape,
+                      dataset['s2'].dataset.shape,
+                      dataset['s3'].dataset.shape,
+                      dataset['s4'].dataset.shape,
+                      dataset['s5'].dataset.shape))
+
+    # dataset & metadata collected
     print('\n=======================================')
     print('Analyzing...\n')
 
@@ -86,17 +94,9 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
     print('-----------------')
 
     for sbj, roi, layer in product(subject, rois, layers):
-        print('--------------------')
-        print('Subject:    %s' % sbj)
-        print('ROI:        %s' % roi)
-        print('Num voxels: %d' % voxel[roi])
-        print('Layers:    %s' % layer)
-
         data = subject[sbj]
-        # ---------------------------------------------
-
         x = data.select(rois[roi])
-        # --------------------------------------------
+        print('roi: %s, x: %s' % (roi, x.shape))
 
         data_type = data.select('DataType')
         labels = data.select('stimulus_id')
@@ -140,23 +140,27 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     print('Loop start...')
 
     # Normalize image features for training (y_train_unit)
-    norm_mean_y = np.mean(y_train, axis=0)
-    std_y = np.std(y_train, axis=0, ddof=1)
-
-    norm_scale_y = numpy.array([])
-
-    for i in std_y:
-        if i == 0:
-            norm_scale_y = numpy.append(norm_scale_y, 1)
-        else:
-            norm_scale_y = numpy.append(norm_scale_y, i)
-
-    y_train = (y_train - norm_mean_y) / norm_scale_y
+    # norm_mean_y = np.mean(y_train, axis=0)
+    # std_y = np.std(y_train, axis=0, ddof=1)
+    #
+    # norm_scale_y = numpy.array([])
+    #
+    # for i in std_y:
+    #     if i == 0:
+    #         norm_scale_y = numpy.append(norm_scale_y, 1)
+    #     else:
+    #         norm_scale_y = numpy.append(norm_scale_y, i)
+    #
+    # y_train = (y_train - norm_mean_y) / norm_scale_y
 
     # correlate with y and x
     correlation = corrcoef(y_train[:, 0], x_train, var='col')
 
-    x_train, voxel_index = select_top(x_train, np.abs(correlation), num_voxel, axis=1, verbose=False)
+    x_train, voxel_index = select_top(x_train, np.abs(correlation),
+                                      num_voxel, axis=1,
+                                      verbose=False)
+
+    print('voxel_index: ', voxel_index.shape)
     x_test = x_test[:, voxel_index]
 
     # Add bias terms
@@ -166,25 +170,33 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     # Training dataset shape
     x_axis_0 = x_train.shape[0]
     x_axis_1 = x_train.shape[1]
+    print('x_axis_0: %s, x_axis_1: %s' %(x_axis_0, x_axis_1))
 
     # Test dataset shape
     xt_axis_0 = x_test.shape[0]
 
-    print('x_train: ', x_train.shape)
-    print('x_test: ', x_test.shape)
+    # print('x_train: ', x_train.shape)
+    # print('x_test: ', x_test.shape)
 
-    # Reshape for Conv1D
+    # Reshape for Conv2D
     if x_train.shape[1] == 1000:
-        x_train = x_train.reshape(x_axis_0, 40, 25, 1)
-        x_test = x_test.reshape(xt_axis_0, 40, 25, 1)
+        x_train = x_train.reshape(x_axis_0, 1000, 1, 1)
+        x_test = x_test.reshape(xt_axis_0, 1000, 1, 1)
+
+        y_train = y_train.reshape(x_axis_0, 40, 25, 1)
+        y_test = y_test.reshape(xt_axis_0, 40, 25, 1)
+
     else:
         x_train = x_train.reshape(x_axis_0, 32, 32, 1)
         x_test = x_test.reshape(xt_axis_0, 32, 32, 1)
 
-    print('after reshape x_train: ', x_train.shape)
-    print('after reshape x_test: ', x_test.shape)
-    print('y_train: ', y_train.shape)
-    print('y_test: ', y_test.shape)
+        y_train = y_train.reshape(x_axis_0, 32, 32, 1)
+        y_test = y_test.reshape(xt_axis_0, 32, 32, 1)
+
+    # print('after reshape x_train: ', x_train.shape)
+    # print('after reshape x_test: ', x_test.shape)
+    # print('y_train: ', y_train.shape)
+    # print('y_test: ', y_test.shape)
 
     layer_axis_0 = x_train.shape[1]
     layer_axis_1 = x_train.shape[2]
@@ -194,27 +206,33 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
 
     model.add(keras.layers.Conv2D(filters=8,
                                   input_shape=(layer_axis_0, layer_axis_1, 1),
-                                  kernel_size=3
+                                  kernel_size=3,
+                                  activation='relu'
                                   ))
-    model.add(keras.layers.MaxPool2D((layer_axis_0, layer_axis_1), padding='same'))
+    model.add(keras.layers.AvgPool2D(padding='same'))
+
+    model.add(keras.layers.Conv2D(filters=8,
+                                  kernel_size=3,
+                                  activation='relu'
+                                  ))
+    model.add(keras.layers.AvgPool2D(padding='same'))
 
     model.add(keras.layers.Dense(1000, activation='softmax'))
 
-    optimizer = Adam(learning_rate=0.000000000000000001)
+    optimizer = Adam()
     loss = keras.losses.mean_squared_error
 
-    model.compile(optimizer, loss, metrics=['accuracy'])
+    model.compile(optimizer, loss, metrics=['MeanSquaredError'])
 
     # Training and test
-    model.fit(x_train, y_train, epochs=15)  # Training
+    print(model.summary())
+    model.fit(x_train, y_train, epochs=200)  # Training
     y_pred_list = model.predict(x_test)  # Test
 
-    y_pred_list = y_pred_list * norm_scale_y + norm_mean_y
+    # y_pred_list = y_pred_list * norm_scale_y + norm_mean_y
 
     print('y_pred_list: ', y_pred_list.shape)
     print(y_test.shape)
-
-    bias_list = numpy.array([])
 
     y_pred_list = y_pred_list.reshape(y_test.shape[0], y_test.shape[1])
     print('y_pred_list after reshape: ', y_pred_list.shape)
