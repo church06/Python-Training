@@ -2,15 +2,19 @@ import os
 import os.path
 from itertools import product
 
+import slir
 import bdpy
 import h5py
-import numpy
+import keras.layers
 import numpy as np
-import tensorflow.keras as keras
+import pandas as pd
+import tensorflow.keras.optimizers
+from bdpy import get_refdata
+from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
+from keras import Sequential
+from matplotlib import pyplot as plt
 
 
 # TODO: read article and do parameter optimization + model design
@@ -85,20 +89,18 @@ def main():
                       dataset['s5'].dataset.shape))
 
     # dataset & metadata collected
-    print('\n=======================================')
-    print('Analyzing...\n')
-
     data_prepare(dataset, regine_of_interest, image_feature, layers, voxel)
 
 
 def data_prepare(subject, rois, img_feature, layers, voxel):
-    print('Start learning:')
+    print('Data prepare:')
     print('-----------------')
 
     for sbj, roi, layer in product(subject, rois, layers):
         data = subject[sbj]
         x = data.select(rois[roi])
-        print('roi: %s, x: %s' % (roi, x.shape))
+        print('-----------------------------------')
+        print('roi: %s, subject: %s, layer: %s' % (roi, sbj, layer))
 
         data_type = data.select('DataType')
         labels = data.select('stimulus_id')
@@ -124,14 +126,69 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         y_train = y_sort[i_train, :]
         y_test = y_sort[i_test, :]
 
-        algorithm_predict_feature(x_train=x_train, y_train=y_train,
-                                  x_test=x_test, y_test=y_test,
-                                  num_voxel=voxel[roi])
+        pred_y, true_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
+                                                   x_test=x_test, y_test=y_test,
+                                                   num_voxel=voxel[roi], information=[sbj, roi, layer])
+
+        # Separate results for perception and imagery tests
+        i_pt = i_test_seen[i_test]  # Index for perception test within test
+        i_im = i_test_img[i_test]  # Index for imagery test within test
+
+        pred_y_pt = pred_y[i_pt, :]
+        pred_y_im = pred_y[i_im, :]
+
+        true_y_pt = true_y[i_pt, :]
+        true_y_im = true_y[i_im, :]
+
+        # Get averaged predicted feature
+        test_label_pt = labels[i_test_seen, :].flatten()
+        test_label_im = labels[i_test_img, :].flatten()
+
+        pred_y_pt_av, true_y_pt_av, test_label_set_pt \
+            = get_averaged_feature(pred_y_pt, true_y_pt, test_label_pt)
+        pred_y_im_av, true_y_im_av, test_label_set_im \
+            = get_averaged_feature(pred_y_im, true_y_im, test_label_im)
+
+        print('Predict average seen feature: ', pred_y_pt_av)
+        print('True average seen feature: ', true_y_pt_av)
+        print('Predict average imaginary feature: ', pred_y_im_av)
+        print('True average imaginary feature: ', true_y_im_av)
+
+        # Get category averaged features
+        catlabels_pt = np.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
+        catlabels_im = np.vstack([int(n) for n in test_label_im])  # Category labels (imagery test)
+        catlabels_set_pt = np.unique(catlabels_pt)  # Category label set (perception test)
+        catlabels_set_im = np.unique(catlabels_im)  # Category label set (imagery test)
+
+        y_catlabels = img_feature.select('CatID')  # Category labels in image features
+        ind_catave = (img_feature.select('FeatureType') == 3).flatten()
+
+        y_catave_pt = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_pt)
+        y_catave_im = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_im)
+
+        # Prepare result dataframe
+        results = pd.DataFrame({'subject': [sbj, sbj],
+                                'roi': [roi, roi],
+                                'feature': [layer, layer],
+                                'test_type': ['perception', 'imagery'],
+                                'true_feature': [true_y_pt, true_y_im],
+                                'predicted_feature': [pred_y_pt, pred_y_im],
+                                'test_label': [test_label_pt, test_label_im],
+                                'test_label_set': [test_label_set_pt, test_label_set_im],
+                                'true_feature_averaged': [true_y_pt_av, true_y_im_av],
+                                'predicted_feature_averaged': [pred_y_pt_av, pred_y_im_av],
+                                'category_label_set': [catlabels_set_pt, catlabels_set_im],
+                                'category_feature_averaged': [y_catave_pt, y_catave_im]})
+
+        results.to_csv(('bxz056/result_%s_%s' % (subject, roi, layer)))
 
 
-def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
-    print('--------------------- Start predicting')
+def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, information: list):
 
+    n_iter = 50
+
+    print('Learning started:')
+    print('---------------------------------')
     # Normalize brian data (x)
     norm_mean_x = np.mean(x_train, axis=0)
     norm_scale_x = np.std(x_train, axis=0, ddof=1)
@@ -139,143 +196,83 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel):
     x_train = (x_train - norm_mean_x) / norm_scale_x
     x_test = (x_test - norm_mean_x) / norm_scale_x
 
-    print('Loop start...')
+    # save predict value
+    model = slir.SparseLinearRegression(n_iter=n_iter, prune_mode=1)
+    y_pred_all = []
 
-    # Normalize image features for training (y_train_unit)
-    norm_mean_y = np.mean(y_train, axis=0)
-    std_y = np.std(y_train, axis=0, ddof=1)
+    for i in range(1000):
 
-    norm_scale_y = numpy.array([])
+        # SIFT descriptor normalization
+        y_train_unit = y_train[:, i]
+        y_test_unit = y_test[:, i]
 
-    for i in std_y:
-        if i == 0:
-            norm_scale_y = numpy.append(norm_scale_y, 1)
-        else:
-            norm_scale_y = numpy.append(norm_scale_y, i)
+        norm_mean_y = np.mean(y_train_unit, axis=0)
+        std_y = np.std(y_train_unit, axis=0, ddof=1)
+        norm_scale_y = 1 if std_y == 0 else std_y
 
-    y_train = (y_train - norm_mean_y) / norm_scale_y
+        y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
 
-    # correlate with y and x
-    correlation = corrcoef(y_train[:, 0], x_train, var='col')
+        # correlate with y and x
+        correlation = corrcoef(y_train_unit, x_train, var='col')
 
-    x_train, voxel_index = select_top(x_train, np.abs(correlation),
-                                      num_voxel, axis=1,
-                                      verbose=False)
+        x_train, voxel_index = select_top(x_train, np.abs(correlation),
+                                          num_voxel, axis=1,
+                                          verbose=False)
 
-    x_test = x_test[:, voxel_index]
+        x_test = x_test[:, voxel_index]
 
-    # Add bias terms
-    # x_train = add_bias(x_train, axis=1)
-    # x_test = add_bias(x_test, axis=1)
+        # Add bias terms
+        x_train = add_bias(x_train, axis=1)
+        x_test = add_bias(x_test, axis=1)
 
-    # Training dataset shape
-    x_axis_0 = x_train.shape[0]
-    x_axis_1 = x_train.shape[1]
-    print('x_axis_0: %s, x_axis_1: %s' % (x_axis_0, x_axis_1))
+        # ===================================================================================
+        # define the neural network architecture (convolutional net) ------------------------
 
-    # Test dataset shape
-    xt_axis_0 = x_test.shape[0]
+        print('Subject: %s, Roi: %s, Layer: %s, Voxel: %d' %
+              (information[0], information[1], information[2], i))
 
-    print('x_train: ', x_train.shape)
-    print('x_test: ', x_test.shape)
-    print('y_train: ', y_train.shape)
-    print('y_test: ', y_test.shape)
+        # Training and test
+        try:
+            model.fit(x_train, y_train_unit)  # Training
+            y_pred = model.predict(x_test)  # Test
 
-    # Reshape for Conv2D
-    if x_train.shape[1] == 1000:
-        x_train = x_train.reshape(x_axis_0, 40, 25, 1)
-        x_test = x_test.reshape(xt_axis_0, 40, 25, 1)
+        except Exception as e:
+            print('x_test_unit: ', x_test.shape)
+            print('y_test_unit: ', y_test_unit.shape)
+            print('x_train_unit: ', x_train.shape)
+            print('y_train_unit: ', y_train_unit.shape)
 
-        y_train = y_train.reshape(x_axis_0, 40, 25, 1)
-        y_test = y_test.reshape(xt_axis_0, 40, 25, 1)
+            print(e)
+            y_pred = np.zeros(y_test_unit.shape)
+        # -----------------------------------------------------------------------------------
+        # ===================================================================================
 
-    else:
-        x_train = x_train.reshape(x_axis_0, 32, 32, 1)
-        x_test = x_test.reshape(xt_axis_0, 32, 32, 1)
+        y_pred = y_pred * norm_scale_y + norm_mean_y  # denormalize
+        print('loss: ', y_test[:, i] - y_pred)
 
-        y_train = y_train.reshape(x_axis_0, 32, 32, 1)
-        y_test = y_test.reshape(xt_axis_0, 32, 32, 1)
+        y_pred_all.append(y_pred)
 
-    layer_axis_0 = x_train.shape[1]
-    layer_axis_1 = x_train.shape[2]
-    print('la_0: %s, la_1: %s' % (layer_axis_0, layer_axis_1))
+    y_predicted = np.vstack(y_pred_all).T
 
-    # define the neural network architecture (convolutional net) ------------------------
+    return y_predicted, y_test
+
+
+def LinearModel(optimizer: ('adam', 'sdg'), learning_rate: float, loss_type: str):
     model = Sequential()
 
-    model.add(keras.layers.Conv2D(filters=8,
-                                  input_shape=(layer_axis_0, layer_axis_1, 1),
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
+    model.add(keras.layers.Dense(units=1000, input_dim=1))
+    model.add(keras.layers.Activation('linear'))
+    model.add(keras.layers.Dense(units=1))
 
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
+    if optimizer == 'adam':
+        opr = tensorflow.keras.optimizers.Adam(learning_rate=learning_rate)
+        model.compile(opr, loss_type)
 
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
+    elif optimizer == 'sdg':
+        opr = tensorflow.keras.optimizers.SGD(learning_rate)
+        model.compile(opr, loss_type)
 
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
-
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
-
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
-
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
-
-    model.add(keras.layers.Conv2D(filters=8,
-                                  kernel_size=3,
-                                  activation='relu',
-                                  padding='same'
-                                  ))
-    model.add(keras.layers.AvgPool2D(pool_size=(1, 1), padding='same'))
-
-    model.add(keras.layers.Dense(units=1, activation='softmax'))
-    # -----------------------------------------------------------------------------------
-    optimizer = Adam()
-    loss = keras.losses.mean_squared_error
-
-    model.compile(optimizer, loss, metrics=['MeanSquaredError'])
-
-    # Training and test
-    print(model.summary())
-    model.fit(x_train, y_train, epochs=5)  # Training
-    y_pred_list = model.predict(x_test)  # Test
-
-    # y_pred_list = y_pred_list * norm_scale_y + norm_mean_y
-
-    print('y_pred_list: ', y_pred_list.shape)
-    print(y_test.shape)
+    return model
 
 
 def get_averaged_feature(pred_y, true_y, labels):

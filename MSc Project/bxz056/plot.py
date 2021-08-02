@@ -12,44 +12,56 @@ def data_prepare(subject):
     print('Start plotting...')
     print('-----------------')
 
-    target = 's5'
-    data = subject[target]
-    switch = 3
+    # Model setting:
+    model_setting = 2
+    # 0: print all ROI for each subject
+    # 1: print image feature
+    # 2: print correlation parameters for  each hierarchical feature of each subject
+    # 3: print fMRI data for each hierarchical feature of each subject
 
-    # ----- ROI & image feature plot
+    # ------------------------------------------------------------- ROI & image feature plot
     for sbj in subject:
-        data = subject[sbj]
+        data_single = subject[sbj]
 
-        if switch == 0:
+        if model_setting == 0:
             print('Plot %s rois...' % sbj)
-            subject_plot(data, sbj)
+            subject_plot(data_single, sbj)
             print('Finish --------')
 
-        elif switch == 1:
-            print('Plot %s image features...' % sbj)
-            img_feature_plot(data, sbj, image_feature, layers)
+        # s1 -> s5 are same dataset of image feature
+        elif model_setting == 1:
+            print('Plot image features...')
+            img_feature_plot(data_single, image_feature, layers, pattern=2)
             print('Finish ------------------')
+            break
 
-    # ----- Correlation rate & layers plot
+    # ----------------------------------------------------------------------------------
+    # Correlation rate & layers plot
+
+    # Setting: switch: (2, 3)
+    #          target: (s1 -> s5) !! manually, automatically will cause memory error
+
+    target = 's5'
+    data = subject[target]
+
     for roi in rois:
         x_roi = data.select(rois[roi])
 
-        if switch == 2:
-            print('Plot %s %s correlation parameters...' % (target, roi))
-            correlation_parameters_plot(data, x_roi, image_feature, layers, target, roi)
+        if model_setting == 2:
+            print('correlation parameters: [subject - %s, roi - %s]' % (target, roi))
+            correlation_parameters_plot(data, x_roi, image_feature, layers, target, roi, voxel[roi], pattern=1)
+            print('Finish ----------------------------------------------')
+
+        elif model_setting == 3:
+            print('Plot %s %s hierarchical fMRI data...' % (target, roi))
+            roi_plot(data, x_roi, target, roi, voxel[roi])
             print('Finish -----------------------------')
 
-        elif switch == 3:
-            print('Plot %s %s roi layers...' % (target, roi))
-            roi_plot(data, x_roi, target, roi)
-            print('Finish -----------------------------')
+    print('All plotting Finished. ヾ(•ω•`)o')
 
 
 # Plot functions - only for plot data *************************************
-def correlation_parameters_plot(data, x_roi, img_feature, layer_all, sbj, roi):
-    print('======================================')
-    print('subject: %s, roi: %s' % (sbj, roi))
-
+def correlation_parameters_plot(data, x_roi, img_feature, layer_all, sbj, roi, voxel_roi, pattern: (0, 1)):
     plt.figure(figsize=(240, 100))
     plt.rcParams['font.size'] = 60
 
@@ -58,41 +70,76 @@ def correlation_parameters_plot(data, x_roi, img_feature, layer_all, sbj, roi):
     for layer in layer_all:
         i += 1
 
-        cor_current = x_layer(data, x_roi, img_feature, layer, 1)
+        cor_current = x_layer(data, x_roi, img_feature, layer, voxel_roi, 1)
 
         plt.subplot(5, 3, i)
-        plt.title('%s %s %s' % (sbj.capitalize(), roi.capitalize(), layer.capitalize()),
+        plt.title('%s - %s' % (roi.capitalize(), layer.capitalize()),
                   fontsize=100, fontstyle='italic', fontweight='medium')
+
+        # Normal correlation rate
+        if pattern == 0:
+            plt.bar(range(cor_current.shape[0]), cor_current)
+
+        # Absolute correlation rate
+        elif pattern == 1:
+            cor_current = np.abs(cor_current)
+            plt.bar(range(cor_current.shape[0]), cor_current)
+
         plt.xlabel('voxel', color='r')
         plt.ylabel('correlation rate', color='r')
-        plt.bar(range(cor_current.shape[0]), cor_current)
         plt.grid()
 
-    plt.suptitle('%s Correlation Rates' % sbj, fontsize=200, fontstyle='italic', fontweight='bold')
+    if pattern == 0:
+        plt.suptitle('%s Correlation Rates' % sbj, fontsize=200, fontstyle='italic', fontweight='bold')
+    elif pattern == 1:
+        plt.suptitle('%s Correlation Rates - Absolute Value' % sbj, fontsize=200, fontstyle='italic', fontweight='bold')
+
     plt.tight_layout(rect=[0, 0, 1, 0.99])
-    plt.show(block=False)
-    plt.savefig('plots/%s_layers/cor_parameters/%s_%s_correlation.png' % (sbj, sbj, roi))
+
+    path_norm = 'plots/%s_layers/cor_parameters/norm' % sbj
+    path_abs = 'plots/%s_layers/cor_parameters/abs' % sbj
+
+    if not os.path.exists(path_norm):
+        print('No plots folder. Folder will be created.')
+        os.makedirs(path_norm)
+
+    if not os.path.exists(path_abs):
+        print('No plots folder. Folder will be created.')
+        os.makedirs(path_abs)
+        print('Folder create finished.')
+
+    if pattern == 0:
+        plt.savefig('plots/%s_layers/cor_parameters/norm/%s_%s_correlation.png' % (sbj, sbj, roi))
+    elif pattern == 1:
+        plt.savefig('plots/%s_layers/cor_parameters/abs/%s_%s_correlation_abs.png' % (sbj, sbj, roi))
     plt.close('all')
 
 
-def roi_plot(data, x_roi, sbj, roi):
+def roi_plot(data, x_roi, sbj, roi, num_voxel):
     plt.figure(figsize=(240, 100))
     plt.rcParams['font.size'] = 60
     i = 0
 
     for layer in layers:
         i += 1
-        x_current = x_layer(data, x_roi, image_feature, layer, 0)
+        x_current = x_layer(data, x_roi, image_feature, layer, num_voxel, 0)
 
         plt.subplot(5, 3, i)
-        plt.title('%s %s %s' % (sbj.capitalize(), roi.capitalize(), layer.capitalize()),
+        plt.title('%s' % layer.capitalize(),
                   fontsize=100, fontstyle='italic', fontweight='medium')
         plt.xlabel('voxel', color='r')
         plt.ylabel('mean amplitude', color='r')
         plt.bar(range(x_current.shape[1]), x_current[0, :])
         plt.grid()
 
-    plt.suptitle('%s ROIs' % sbj, fontsize=200, fontstyle='italic', fontweight='bold')
+    file_output = 'plots/%s_layers/rois' % sbj
+
+    if not os.path.exists(file_output):
+        print('No plots folder. Folder will be created.')
+        os.makedirs(file_output)
+        print('Folder create finished.')
+
+    plt.suptitle('%s %s' % (sbj.capitalize(), roi.capitalize()), fontsize=200, fontstyle='italic', fontweight='bold')
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.show(block=False)
     plt.savefig('plots/%s_layers/rois/%s_%s.png' % (sbj, sbj, roi))
@@ -109,21 +156,28 @@ def subject_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5')):
         x_current = data.select(rois[roi])
 
         plt.subplot(5, 2, i)
-        plt.title('%s x %s' % (sbj.capitalize(), roi.capitalize()),
+        plt.title('%s' % (roi.capitalize()),
                   fontsize=100, fontstyle='italic', fontweight='medium')
         plt.xlabel('voxel', color='r')
         plt.ylabel('mean amplitude', color='r')
         plt.bar(range(x_current.shape[1]), x_current[0, :])
         plt.grid()
 
-    plt.suptitle('Subject %s' % sbj[-1], fontsize=200, fontstyle='italic', fontweight='bold')
+    file_output = 'plots/%s_layers/rois' % sbj
+
+    if not os.path.exists(file_output):
+        print('No plots folder. Folder will be created.')
+        os.makedirs(file_output)
+        print('Folder create finished.')
+
+    plt.suptitle('Subject %s ROIs' % sbj[-1], fontsize=200, fontstyle='italic', fontweight='bold')
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.show(block=False)
     plt.savefig('plots/%s_layers/rois/%s_rois.png' % (sbj, sbj))
     plt.close('all')
 
 
-def img_feature_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5'), img_feature, layer_all):
+def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2)):
     labels = data.select('stimulus_id')
     y_label = img_feature.select('ImageID')
 
@@ -132,6 +186,8 @@ def img_feature_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5'), img_feature, lay
     i_train = (data_type == 1).flatten()
     i_test_seen = (data_type == 2).flatten()
     i_test_img = (data_type == 3).flatten()
+
+    i_test = i_test_seen + i_test_img
 
     i = 0
     plot_num = len(layer_all)
@@ -147,37 +203,105 @@ def img_feature_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5'), img_feature, lay
         y_test_seen = y_current_layer[i_test_seen, :]
         y_test_img = y_current_layer[i_test_img, :]
 
+        # =================================================================================
         # ----------------------------------------------------------------------- Plot part
-        for time in range(0, 3):
+        if pattern == 0:
+
+            for time in range(0, 3):
+                i += 1
+                plt.subplot(plot_num, 3, i)
+                plt.ylim()
+                plt.xlabel('Visualwords (SIFT Descriptor)', color='r')
+                plt.ylabel('Frequency', color='r')
+                plt.grid()
+
+                if time == 0:
+                    plt.bar(range(y_train.shape[1]), y_train[0, :])
+                    plt.title('%s Training Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
+                              fontweight='medium')
+
+                elif time == 1:
+                    plt.bar(range(y_test_seen.shape[1]), y_test_seen[0, :])
+                    plt.title('%s Seen Test Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
+                              fontweight='medium')
+
+                else:
+                    plt.bar(range(y_test_img.shape[1]), y_test_img[0, :])
+                    plt.title('%s Imaginary Test Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
+                              fontweight='medium')
+
+        # Combine seen and imaginary chart ------------------------------------------------
+        elif pattern == 1:
+            y_test = y_current_layer[i_test, :]
+
+            for time in range(0, 2):
+                i += 1
+                plt.subplot(plot_num, 2, i)
+                plt.xlabel('Visualwords (SIFT Descriptor)', color='r')
+                plt.ylabel('Frequency', color='r')
+                plt.grid()
+
+                if time == 0:
+                    plt.bar(range(y_train.shape[1]), y_train[0, :])
+                    plt.title('%s Training Data' % layer.capitalize(),
+                              fontsize=100, fontstyle='italic',
+                              fontweight='medium')
+
+                else:
+                    plt.bar(range(y_test.shape[1]), y_test[0, :])
+                    plt.title('%s Test Data' % layer.capitalize(),
+                              fontsize=100, fontstyle='italic',
+                              fontweight='medium')
+
+        elif pattern == 2:
             i += 1
-            plt.subplot(plot_num, 3, i)
 
-            if time == 0:
-                plt.bar(range(y_train.shape[1]), y_train[0, :])
-                plt.title('%s Training Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
-                          fontweight='medium')
+            norm_scale_y = np.array([])
 
-            elif time == 1:
-                plt.bar(range(y_test_seen.shape[1]), y_test_seen[0, :])
-                plt.title('%s Seen Test Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
-                          fontweight='medium')
+            norm_mean_y = np.mean(y_train, axis=0)
+            std_y = np.std(y_train, axis=0, ddof=1)
 
-            else:
-                plt.bar(range(y_test_img.shape[1]), y_test_img[0, :])
-                plt.title('%s Imaginary Test Data' % layer.capitalize(), fontsize=100, fontstyle='italic',
-                          fontweight='medium')
+            for std in std_y:
+                if std == 0:
+                    norm_scale_y = np.append(norm_scale_y, 1)
+                else:
+                    norm_scale_y = np.append(norm_scale_y, std)
 
-            plt.xlabel('Vector Index', color='r')
-            plt.ylabel('Value', color='r')
+            y_train = (y_train - norm_mean_y) / norm_scale_y
+
+            plt.subplot(plot_num, 1, i)
+            plt.xlabel('Visualwords (SIFT Descriptor)', color='r')
+            plt.ylabel('Frequency', color='r')
             plt.grid()
+
+            plt.bar(range(y_train.shape[1]), y_train[0, :])
+            plt.title('%s Training Data' % layer.capitalize(),
+                      fontsize=100, fontstyle='italic',
+                      fontweight='medium')
+        # ----------------------------------------------------------------------- Plot part
+        # =================================================================================
 
     plt.tight_layout(rect=[0, 0, 1, 0.97])
     plt.show(block=False)
-    plt.savefig('plots/%s_image_feature.png' % sbj.capitalize())
+
+    file_output = 'plots'
+
+    if not os.path.exists(file_output):
+        print('No plots folder. Folder will be created.')
+        os.makedirs(file_output)
+        print('Folder create finished.')
+
+    if pattern == 0:
+        plt.savefig('plots/Image_Feature.png')
+    elif pattern == 1:
+        plt.savefig('plots/IMG_F_Test_all.png')
+    elif pattern == 2:
+        plt.savefig('plots/Y_train_L1_norm.png')
+
     plt.close('all')
 
 
-def x_layer(data, roi, img_feature, layer: str, return_type: (0, 1, 2)):
+def x_layer(data, roi, img_feature, layer: str, voxel_roi, return_type: (0, 1, 2)):
     y = img_feature.select(layer)
 
     labels = data.select('stimulus_id')
@@ -190,7 +314,7 @@ def x_layer(data, roi, img_feature, layer: str, return_type: (0, 1, 2)):
     correlation = corrcoef(y_sort[:, 0], roi, var='col')
 
     x, voxel_index = select_top(roi, np.abs(correlation),
-                                num=1000, axis=1,
+                                num=voxel_roi, axis=1,
                                 verbose=False)
 
     if return_type == 0:
@@ -256,7 +380,4 @@ print('s1: %s\n''s2: %s\n''s3: %s\n''s4: %s\n''s5: %s' % (dataset['s1'].dataset.
                                                           dataset['s5'].dataset.shape))
 
 # dataset & metadata collected
-print('\n=======================================')
-print('Analyzing...\n')
-
 data_prepare(dataset)
