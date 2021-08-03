@@ -2,19 +2,16 @@ import os
 import os.path
 from itertools import product
 
-import numpy
-import slir
 import bdpy
 import h5py
-import keras.layers
+import numpy
 import numpy as np
 import pandas as pd
-import tensorflow.keras.optimizers
+import slir
 from bdpy import get_refdata
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
-from keras import Sequential
 from matplotlib import pyplot as plt
 
 
@@ -156,16 +153,16 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
         print('True average imaginary feature: ', true_y_im_av)
 
         # Get category averaged features
-        catlabels_pt = np.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
-        catlabels_im = np.vstack([int(n) for n in test_label_im])  # Category labels (imagery test)
-        catlabels_set_pt = np.unique(catlabels_pt)  # Category label set (perception test)
-        catlabels_set_im = np.unique(catlabels_im)  # Category label set (imagery test)
+        cat_labels_pt = np.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
+        cat_labels_im = np.vstack([int(n) for n in test_label_im])  # Category labels (imagery test)
+        cat_labels_set_pt = np.unique(cat_labels_pt)  # Category label set (perception test)
+        cat_labels_set_im = np.unique(cat_labels_im)  # Category label set (imagery test)
 
-        y_catlabels = img_feature.select('CatID')  # Category labels in image features
-        ind_catave = (img_feature.select('FeatureType') == 3).flatten()
+        y_cat_labels = img_feature.select('CatID')  # Category labels in image features
+        ind_cat_av = (img_feature.select('FeatureType') == 3).flatten()
 
-        y_catave_pt = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_pt)
-        y_catave_im = get_refdata(y[ind_catave, :], y_catlabels[ind_catave, :], catlabels_set_im)
+        y_cat_av_pt = get_refdata(y[ind_cat_av, :], y_cat_labels[ind_cat_av, :], cat_labels_set_pt)
+        y_cat_av_im = get_refdata(y[ind_cat_av, :], y_cat_labels[ind_cat_av, :], cat_labels_set_im)
 
         # Prepare result dataframe
         results = pd.DataFrame({'subject': [sbj, sbj],
@@ -178,10 +175,13 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
                                 'test_label_set': [test_label_set_pt, test_label_set_im],
                                 'true_feature_averaged': [true_y_pt_av, true_y_im_av],
                                 'predicted_feature_averaged': [pred_y_pt_av, pred_y_im_av],
-                                'category_label_set': [catlabels_set_pt, catlabels_set_im],
-                                'category_feature_averaged': [y_catave_pt, y_catave_im]})
+                                'category_label_set': [cat_labels_set_pt, cat_labels_set_im],
+                                'category_feature_averaged': [y_cat_av_pt, y_cat_av_im]})
 
-        results.to_csv(path_or_buf='result_%s_%s.csv' % (sbj, roi),)
+        results.to_csv(path_or_buf="bxz056/plots/result_%s_%s_%s" % (sbj, layer, roi), sep=',', na_rep='', float_format=None,
+                       columns=None, header=True, index=True, index_label=None, mode='w', encoding=None,
+                       compression=None, quoting=None, quotechar='"', line_terminator='\n', chunksize=None,
+                       date_format=None, doublequote=True, escapechar=None, decimal='.')
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, information: list):
@@ -289,24 +289,6 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
     y_predicted = np.vstack(y_pred_all).T
 
     return y_predicted, y_test
-
-
-def LinearModel(optimizer: ('adam', 'sdg'), learning_rate: float, loss_type: str):
-    model = Sequential()
-
-    model.add(keras.layers.Dense(units=1000, input_dim=1))
-    model.add(keras.layers.Activation('linear'))
-    model.add(keras.layers.Dense(units=1))
-
-    if optimizer == 'adam':
-        opr = tensorflow.keras.optimizers.Adam(learning_rate=learning_rate)
-        model.compile(opr, loss_type)
-
-    elif optimizer == 'sdg':
-        opr = tensorflow.keras.optimizers.SGD(learning_rate)
-        model.compile(opr, loss_type)
-
-    return model
 
 
 def get_averaged_feature(pred_y, true_y, labels):
