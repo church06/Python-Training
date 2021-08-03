@@ -2,6 +2,7 @@ import os
 import os.path
 from itertools import product
 
+import numpy
 import slir
 import bdpy
 import h5py
@@ -180,12 +181,15 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
                                 'category_label_set': [catlabels_set_pt, catlabels_set_im],
                                 'category_feature_averaged': [y_catave_pt, y_catave_im]})
 
-        results.to_csv(('bxz056/result_%s_%s' % (subject, roi, layer)))
+        results.to_csv(path_or_buf='result_%s_%s.csv' % (sbj, roi),)
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, information: list):
+    # Plot setting for not python scientific model
+    # plt.figure(figsize=(10, 8))
 
-    n_iter = 50
+    # Training iteration
+    n_iter = 200
 
     print('Learning started:')
     print('---------------------------------')
@@ -201,6 +205,9 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
     y_pred_all = []
 
     for i in range(1000):
+
+        print('Subject: %s, Roi: %s, Layer: %s, Voxel: %d' %
+              (information[0], information[1], information[2], i))
 
         # SIFT descriptor normalization
         y_train_unit = y_train[:, i]
@@ -228,9 +235,6 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
         # ===================================================================================
         # define the neural network architecture (convolutional net) ------------------------
 
-        print('Subject: %s, Roi: %s, Layer: %s, Voxel: %d' %
-              (information[0], information[1], information[2], i))
-
         # Training and test
         try:
             model.fit(x_train, y_train_unit)  # Training
@@ -248,7 +252,37 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
         # ===================================================================================
 
         y_pred = y_pred * norm_scale_y + norm_mean_y  # denormalize
-        print('loss: ', y_test[:, i] - y_pred)
+
+        single_loss = numpy.array(y_test_unit - y_pred)
+
+        print('loss: ', single_loss.shape)
+
+        # for open python scientific model
+        plt.figure(figsize=(10, 8))
+        plt.clf()
+        plt.suptitle('Voxel %s' % i, fontstyle='italic', fontweight='medium')
+
+        plt.subplot(311)
+        plt.title('Predict_unit', fontstyle='italic', fontweight='medium')
+        plt.bar(range(2250), y_pred)
+        plt.xlabel('Voxel %s of all image' % i, color='r')
+        plt.ylabel('Frequency', color='r')
+
+        plt.subplot(312)
+        plt.title('Test_unit', fontstyle='italic', fontweight='medium')
+        plt.bar(range(2250), y_test_unit)
+        plt.xlabel('Voxel %s of all image' % i, color='r')
+        plt.ylabel('Frequency', color='r')
+
+        plt.subplot(313)
+        plt.title('Difference', fontstyle='italic', fontweight='medium')
+        plt.bar(range(2250), single_loss)
+        plt.xlabel('Voxel %s of all image' % i, color='r')
+        plt.ylabel('Difference', color='r')
+
+        plt.tight_layout()
+        plt.plot()
+        plt.pause(0.000001)
 
         y_pred_all.append(y_pred)
 

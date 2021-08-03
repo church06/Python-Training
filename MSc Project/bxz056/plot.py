@@ -13,7 +13,7 @@ def data_prepare(subject):
     print('-----------------')
 
     # Model setting:
-    model_setting = 2
+    model_setting = 3
     # 0: print all ROI for each subject
     # 1: print image feature
     # 2: print correlation parameters for  each hierarchical feature of each subject
@@ -23,15 +23,16 @@ def data_prepare(subject):
     for sbj in subject:
         data_single = subject[sbj]
 
+        # dataset of subject ROIs
         if model_setting == 0:
             print('Plot %s rois...' % sbj)
             subject_plot(data_single, sbj)
             print('Finish --------')
 
-        # s1 -> s5 are same dataset of image feature
+        # dataset of image feature
         elif model_setting == 1:
             print('Plot image features...')
-            img_feature_plot(data_single, image_feature, layers, pattern=2)
+            img_feature_plot(data_single, image_feature, layers, pattern=3)
             print('Finish ------------------')
             break
 
@@ -54,7 +55,7 @@ def data_prepare(subject):
 
         elif model_setting == 3:
             print('Plot %s %s hierarchical fMRI data...' % (target, roi))
-            roi_plot(data, x_roi, target, roi, voxel[roi])
+            roi_plot(data, x_roi, target, roi, voxel[roi], pattern=0)
             print('Finish -----------------------------')
 
     print('All plotting Finished. ヾ(•ω•`)o')
@@ -115,22 +116,25 @@ def correlation_parameters_plot(data, x_roi, img_feature, layer_all, sbj, roi, v
     plt.close('all')
 
 
-def roi_plot(data, x_roi, sbj, roi, num_voxel):
+def roi_plot(data, x_roi, sbj, roi, num_voxel, pattern: (0, 1)):
     plt.figure(figsize=(240, 100))
     plt.rcParams['font.size'] = 60
     i = 0
 
     for layer in layers:
-        i += 1
-        x_current = x_layer(data, x_roi, image_feature, layer, num_voxel, 0)
 
-        plt.subplot(5, 3, i)
-        plt.title('%s' % layer.capitalize(),
+        if pattern == 0:
+            i += 1
+            x_current = x_layer(data, x_roi, image_feature, layer, num_voxel, 0)
+            print('x_current: ', x_current.shape)
+
+            plt.subplot(5, 3, i)
+            plt.title('%s' % layer.capitalize(),
                   fontsize=100, fontstyle='italic', fontweight='medium')
-        plt.xlabel('voxel', color='r')
-        plt.ylabel('mean amplitude', color='r')
-        plt.bar(range(x_current.shape[1]), x_current[0, :])
-        plt.grid()
+            plt.xlabel('voxel', color='r')
+            plt.ylabel('mean amplitude', color='r')
+            plt.bar(range(x_current.shape[1]), x_current[0, :])
+            plt.grid()
 
     file_output = 'plots/%s_layers/rois' % sbj
 
@@ -177,7 +181,7 @@ def subject_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5')):
     plt.close('all')
 
 
-def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2)):
+def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2, 3)):
     labels = data.select('stimulus_id')
     y_label = img_feature.select('ImageID')
 
@@ -192,9 +196,11 @@ def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2)):
     i = 0
     plot_num = len(layer_all)
 
-    plt.figure(figsize=(240, 220))
-    plt.suptitle('Image Feature', fontsize=200, fontstyle='italic', fontweight='bold')
-    plt.rcParams['font.size'] = 60
+    # Size not available for pattern 3
+    if pattern != 3:
+        plt.figure(figsize=(240, 220))
+        plt.rcParams['font.size'] = 60
+        plt.suptitle('Image Feature', fontsize=200, fontstyle='italic', fontweight='bold')
 
     for layer in layer_all:
 
@@ -278,6 +284,14 @@ def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2)):
             plt.title('%s Training Data' % layer.capitalize(),
                       fontsize=100, fontstyle='italic',
                       fontweight='medium')
+
+        elif pattern == 3:
+            plt.bar(range(y_train.shape[1]), y_train[0, :])
+            plt.title('S1 %s Sample' % layer.capitalize(),
+                      fontstyle='italic',
+                      fontweight='medium')
+            break
+
         # ----------------------------------------------------------------------- Plot part
         # =================================================================================
 
@@ -296,7 +310,7 @@ def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2)):
     elif pattern == 1:
         plt.savefig('plots/IMG_F_Test_all.png')
     elif pattern == 2:
-        plt.savefig('plots/Y_train_L1_norm.png')
+        plt.savefig('plots/Y_train_Z_score.png')
 
     plt.close('all')
 
@@ -318,13 +332,11 @@ def x_layer(data, roi, img_feature, layer: str, voxel_roi, return_type: (0, 1, 2
                                 verbose=False)
 
     if return_type == 0:
-        return x
+        return np.array(x)
     elif return_type == 1:
-        return correlation
+        return np.array(correlation)
     elif return_type == 2:
-        return y_sort
-    elif return_type == 3:
-        return
+        return np.array(y_sort)
 
 
 # ==========================================================================================
