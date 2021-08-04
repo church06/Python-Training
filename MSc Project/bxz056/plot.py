@@ -13,7 +13,7 @@ def data_prepare(subject):
     print('-----------------')
 
     # Model setting:
-    model_setting = 3
+    model_setting = 1
     # 0: print all ROI for each subject
     # 1: print image feature
     # 2: print correlation parameters for  each hierarchical feature of each subject
@@ -32,7 +32,7 @@ def data_prepare(subject):
         # dataset of image feature
         elif model_setting == 1:
             print('Plot image features...')
-            img_feature_plot(data_single, image_feature, layers, pattern=3)
+            img_feature_plot(data_single, image_feature, layers, pattern=1)
             print('Finish ------------------')
             break
 
@@ -130,7 +130,7 @@ def roi_plot(data, x_roi, sbj, roi, num_voxel, pattern: (0, 1)):
 
             plt.subplot(5, 3, i)
             plt.title('%s' % layer.capitalize(),
-                  fontsize=100, fontstyle='italic', fontweight='medium')
+                      fontsize=100, fontstyle='italic', fontweight='medium')
             plt.xlabel('voxel', color='r')
             plt.ylabel('mean amplitude', color='r')
             plt.bar(range(x_current.shape[1]), x_current[0, :])
@@ -243,8 +243,36 @@ def img_feature_plot(data, img_feature, layer_all, pattern: (0, 1, 2, 3)):
             for time in range(0, 2):
                 i += 1
                 plt.subplot(plot_num, 2, i)
-                plt.xlabel('Visualwords (SIFT Descriptor)', color='r')
-                plt.ylabel('Frequency', color='r')
+                if layer == 'cnn1' or layer == 'cnn2' or layer == 'cnn3' or \
+                        layer == 'cnn4' or layer == 'cnn5' or layer == 'cnn6' or \
+                        layer == 'cnn7':
+                    plt.xlabel('1000 random units', color='r')
+                    plt.ylabel('Feature value', color='r')
+
+                elif layer == 'cnn8':
+                    plt.xlabel('All unit', color='r')
+                    plt.ylabel('Feature Value', color='r')
+
+                elif layer == 'hmax1':
+                    plt.xlabel('S1 1000 random units', color='r')
+                    plt.ylabel('Feature Value', color='r')
+
+                elif layer == 'hmax2':
+                    plt.xlabel('S2 & C2 1000 random units', color='r')
+                    plt.ylabel('C2 Feature', color='r')
+
+                elif layer == 'hmax3':
+                    plt.xlabel('C3 all units', color='r')
+                    plt.ylabel('C3 Feature', color='r')
+
+                elif layer == 'gist':
+                    plt.xlabel('All units', color='r')
+                    plt.ylabel('GIST Feature (16 × 4 × 16)', color='r')
+
+                elif layer == 'sift':
+                    plt.xlabel('Frequency', color='r')
+                    plt.ylabel('SIFT descriptor', color='r')
+
                 plt.grid()
 
                 if time == 0:

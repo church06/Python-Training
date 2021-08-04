@@ -1,5 +1,6 @@
 import os
 import os.path
+import pickle
 from itertools import product
 
 import bdpy
@@ -8,7 +9,7 @@ import numpy
 import numpy as np
 import pandas as pd
 import slir
-from bdpy import get_refdata
+from bdpy import get_refdata, makedir_ifnot
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
@@ -178,10 +179,15 @@ def data_prepare(subject, rois, img_feature, layers, voxel):
                                 'category_label_set': [cat_labels_set_pt, cat_labels_set_im],
                                 'category_feature_averaged': [y_cat_av_pt, y_cat_av_im]})
 
-        results.to_csv(path_or_buf="bxz056/plots/result_%s_%s_%s" % (sbj, layer, roi), sep=',', na_rep='', float_format=None,
-                       columns=None, header=True, index=True, index_label=None, mode='w', encoding=None,
-                       compression=None, quoting=None, quotechar='"', line_terminator='\n', chunksize=None,
-                       date_format=None, doublequote=True, escapechar=None, decimal='.')
+        # Save results
+        analysis_id = sbj + '-' + roi + '-' + layer
+        results_file = os.path.join('bxz056/plots', analysis_id + '.pkl')
+
+        makedir_ifnot(os.path.dirname(results_file))
+        with open(results_file, 'wb') as f:
+            pickle.dump(results, f)
+
+        print('Saved %s' % results_file)
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, information: list):
