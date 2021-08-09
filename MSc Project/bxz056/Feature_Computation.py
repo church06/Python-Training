@@ -444,10 +444,10 @@ loss_z = norm_z[1, :]
 loss_min_max = norm_min_max[1, :]
 loss_decimal = norm_decimal[1, :]
 
-average_loss = numpy.append(average_loss, loss_none, axis=0)
-average_loss = numpy.append(average_loss, loss_z, axis=0)
-average_loss = numpy.append(average_loss, loss_min_max, axis=0)
-average_loss = numpy.append(average_loss, loss_decimal, axis=0)
+average_loss = numpy.append(average_loss, avg_loss(loss_none), axis=0)
+average_loss = numpy.append(average_loss, avg_loss(loss_z), axis=0)
+average_loss = numpy.append(average_loss, avg_loss(loss_min_max), axis=0)
+average_loss = numpy.append(average_loss, avg_loss(loss_decimal), axis=0)
 
 plt.figure(figsize=(12, 12))
 plt.suptitle('Prediction with different normalization')
