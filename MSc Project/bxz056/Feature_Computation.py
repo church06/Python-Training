@@ -1,3 +1,4 @@
+import datetime
 import os
 import os.path
 import pickle
@@ -17,24 +18,41 @@ from matplotlib import pyplot as plt
 
 # TODO: Data preprocessing through different normalization method
 
-def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
+def data_prepare(subject, rois, img_feature, layer_all, voxel_all, norm_type):
     print('Data prepare:')
     print('-----------------')
 
-    # For plot ========================================================
+    # Parameters  ========================================================
 
-    none = []
-    z = []
-    min_max = []
-    normal_ds = []
+    non_pred = []
+    non_true = []
 
-    # For plot ========================================================
+    z_pred = []
+    z_true = []
 
-    for sbj, roi, layer in product(subject, rois, layer_all):
+    min_max_pred = []
+    min_max_true = []
+
+    decimal_pred = []
+    decimal_true = []
+
+    # times
+    non_time = 0
+    z_time = 0
+    min_max_time = 0
+    decimal_time = 0
+
+    # Parameters ========================================================
+
+    # ROIs setting ------------------
+    roi_single = {'VC': 'ROI_VC = 1'}
+    layer_single = ['cnn1']
+    subject_single = ['s1']
+    # -------------------------------
+
+    for sbj, roi, layer in product(subject_single, roi_single, layer_single):
         data = subject[sbj]
         x = data.select(rois[roi])
-        print('-----------------------------------')
-        print('roi: %s, subject: %s, layer: %s' % (roi, sbj, layer))
 
         data_type = data.select('DataType')
         labels = data.select('stimulus_id')
@@ -60,17 +78,16 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
         y_train = y_sort[i_train, :]
         y_test = y_sort[i_test, :]
 
-        # for test -------------
-        need_axis_0 = 2
+        # for test -----------------------
+        # test_index = 2
+        #
+        # x_train = x_train[:test_index, :]
+        # y_train = y_train[:test_index, :]
+        # --------------------------------
 
-        x_train = x_train[:need_axis_0, :]
-        x_test = x_test[:need_axis_0, :]
+        for i in range(norm_type):
 
-        y_train = y_train[:need_axis_0, :]
-        y_test = y_test[:need_axis_0, :]
-        # ----------------------
-
-        for i in range(repeat):
+            time_start = datetime.datetime.now()
 
             if i == 0:
                 print('No normalizing =============================')
@@ -78,7 +95,12 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
                                                            x_test=x_test, y_test=y_test,
                                                            num_voxel=voxel_all[roi], information=[sbj, roi, layer],
                                                            norm=i)
-                none = numpy.append(pred_y, true_y, axis=0)
+                non_pred = pred_y
+                non_true = true_y
+
+                time_end = datetime.datetime.now()
+                non_time = time_end - time_start
+                print('Time cost: %s s' % non_time)
 
             elif i == 1:
                 print('Z-score normalization using ================')
@@ -86,7 +108,12 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
                                                            x_test=x_test, y_test=y_test,
                                                            num_voxel=voxel_all[roi], information=[sbj, roi, layer],
                                                            norm=i)
-                z = numpy.append(pred_y, true_y, axis=0)
+                z_pred = pred_y
+                z_true = true_y
+
+                time_end = datetime.datetime.now()
+                z_time = time_end - time_start
+                print('Time cost: %s s' % z_time)
 
             elif i == 2:
                 print('Min-Max normalization using ================')
@@ -94,51 +121,167 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
                                                            x_test=x_test, y_test=y_test,
                                                            num_voxel=voxel_all[roi], information=[sbj, roi, layer],
                                                            norm=i)
-                min_max = numpy.append(pred_y, true_y, axis=0)
+                min_max_pred = pred_y
+                min_max_true = true_y
+
+                time_end = datetime.datetime.now()
+                min_max_time = time_end - time_start
+                print('Time cost: %s s' % min_max_time)
 
             elif i == 3:
-                print('Binary normalization using =================')
+                print('Decimal scaling normalization using =================')
                 pred_y, true_y = algorithm_predict_feature(x_train=x_train, y_train=y_train,
                                                            x_test=x_test, y_test=y_test,
                                                            num_voxel=voxel_all[roi], information=[sbj, roi, layer],
                                                            norm=i)
-                normal_ds = numpy.append(pred_y, true_y, axis=0)
+                decimal_pred = pred_y
+                decimal_true = true_y
 
-        # ----------------------------------------------------- Return setting
-        if repeat == 1:
-            return none
-        elif repeat == 2:
-            return none, z
-        elif repeat == 3:
-            return none, z, min_max
-        elif repeat == 4:
-            return none, z, min_max, normal_ds
+                time_end = datetime.datetime.now()
+                decimal_time = time_end - time_start
 
-        # --------------------------------------------------------------------
+                print('Time cost: %s s' % decimal_time)
 
-        # Separate results for perception and imagery tests
+        # Separate imaginary & seen----------------------------------------
         i_pt = i_test_seen[i_test]  # Index for perception test within test
         i_im = i_test_img[i_test]  # Index for imagery test within test
+        # -----------------------------------------------------------------
 
-        pred_y_pt = pred_y[i_pt, :]
-        pred_y_im = pred_y[i_im, :]
+        # Datasets for imaginary & seen--------
+        non_pred = numpy.array(non_pred)
+        non_true = numpy.array(non_true)
 
-        true_y_pt = true_y[i_pt, :]
-        true_y_im = true_y[i_im, :]
+        print('non_pred: ', non_pred.shape)
+        print('non_true: ', non_true.shape)
+        print('i_pt: ', i_pt.shape)
+        print('i_im: ', i_im.shape)
+
+        non_pred_pt = non_pred[i_pt, :]
+        non_pred_im = non_pred[i_im, :]
+        non_true_pt = non_true[i_pt, :]
+        non_true_im = non_true[i_im, :]
+
+        z_pred_pt = z_pred[i_pt, :]
+        z_pred_im = z_pred[i_im, :]
+        z_true_pt = z_true[i_pt, :]
+        z_true_im = z_true[i_im, :]
+
+        min_max_pred_pt = min_max_pred[i_pt, :]
+        min_max_pred_im = min_max_pred[i_im, :]
+        min_max_true_pt = min_max_true[i_pt, :]
+        min_max_true_im = min_max_true[i_im, :]
+
+        decimal_pred_pt = decimal_pred[i_pt, :]
+        decimal_pred_im = decimal_pred[i_im, :]
+        decimal_true_pt = decimal_true[i_pt, :]
+        decimal_true_im = decimal_true[i_im, :]
+
+        # -------------------------------------
 
         # Get averaged predicted feature
         test_label_pt = labels[i_test_seen, :].flatten()
         test_label_im = labels[i_test_img, :].flatten()
 
-        pred_y_pt_av, true_y_pt_av, test_label_set_pt \
-            = get_averaged_feature(pred_y_pt, true_y_pt, test_label_pt)
-        pred_y_im_av, true_y_im_av, test_label_set_im \
-            = get_averaged_feature(pred_y_im, true_y_im, test_label_im)
+        # Get average feature ------------------------------------------------------------
 
-        print('Predict average seen feature: ', pred_y_pt_av)
-        print('True average seen feature: ', true_y_pt_av)
-        print('Predict average imaginary feature: ', pred_y_im_av)
-        print('True average imaginary feature: ', true_y_im_av)
+        # No normalization --------------
+        print('non pred pt: ', non_pred_pt.shape)
+        print('non true pt: ', non_true_pt.shape)
+        print('test label pt: ', test_label_pt.shape)
+        print('test label im: ', test_label_im.shape)
+
+        non_p_pt_av, non_t_pt_av, useless = get_averaged_feature(non_pred_pt,
+                                                                 non_true_pt,
+                                                                 test_label_pt)
+        non_p_im_av, non_t_im_av, useless = get_averaged_feature(non_pred_im,
+                                                                 non_true_im,
+                                                                 test_label_im)
+
+        # Z-Score Normalization ---------------------
+        pred_y_pt_av, true_y_pt_av, test_label_set_pt = get_averaged_feature(z_pred_pt,
+                                                                             z_true_pt,
+                                                                             test_label_pt)
+        pred_y_im_av, true_y_im_av, test_label_set_im = get_averaged_feature(z_pred_im,
+                                                                             z_true_im,
+                                                                             test_label_im)
+        z_p_pt_av, z_t_pt_av = pred_y_pt_av, true_y_pt_av
+        z_p_im_av, z_t_im_av = pred_y_im_av, true_y_im_av
+
+        # Min-Max Normalization -----------------
+        min_max_p_pt_av, min_max_t_pt_av, useless = get_averaged_feature(min_max_pred_pt,
+                                                                         min_max_true_pt,
+                                                                         test_label_pt)
+        min_max_p_im_av, min_max_t_im_av, useless = get_averaged_feature(min_max_pred_im,
+                                                                         min_max_true_im,
+                                                                         test_label_im)
+
+        # Decimal Scaling -----------------------
+        decimal_p_pt_av, decimal_t_pt_av, useless = get_averaged_feature(decimal_pred_pt,
+                                                                         decimal_true_pt,
+                                                                         test_label_pt)
+        decimal_p_im_av, decimal_t_im_av, useless = get_averaged_feature(decimal_pred_im,
+                                                                         decimal_true_im,
+                                                                         test_label_im)
+        # ---------------------------------------------------------------------------------
+
+        # Gather output --------------------------
+        none_all = {'pred_pt': non_pred_pt,
+                    'pred_im': non_pred_im,
+                    'true_pt': non_true_pt,
+                    'true_im': non_true_im,
+                    'p_pt_av': non_p_pt_av,
+                    't_pt_av': non_t_pt_av,
+                    'p_im_av': non_p_im_av,
+                    't_im_av': non_t_im_av,
+                    'time': non_time}
+
+        z_all = {'pred_pt': z_pred_pt,
+                 'pred_im': z_pred_im,
+                 'true_pt': z_true_pt,
+                 'true_im': z_true_im,
+                 'p_pt_av': z_p_pt_av,
+                 't_pt_av': z_t_pt_av,
+                 'p_im_av': z_p_im_av,
+                 't_im_av': z_t_im_av,
+                 'time': z_time}
+
+        min_max_all = {'pred_pt': min_max_pred_pt,
+                       'pred_im': min_max_pred_im,
+                       'true_pt': min_max_true_pt,
+                       'true_im': min_max_true_im,
+                       'p_pt_av': min_max_p_pt_av,
+                       't_pt_av': min_max_t_pt_av,
+                       'p_im_av': min_max_p_im_av,
+                       't_im_av': min_max_t_im_av,
+                       'time': min_max_time}
+
+        decimal_all = {'pred_pt': decimal_pred_pt,
+                       'pred_im': decimal_pred_im,
+                       'true_pt': decimal_true_pt,
+                       'true_im': decimal_true_im,
+                       'p_pt_av': decimal_p_pt_av,
+                       't_pt_av': decimal_t_pt_av,
+                       'p_im_av': decimal_p_im_av,
+                       't_im_av': decimal_t_im_av,
+                       'time': decimal_time}
+        # ----------------------------------------
+
+        print('Predict average seen feature: ', pred_y_pt_av.shape)
+        print('True average seen feature: ', true_y_pt_av.shape)
+        print('Predict average imaginary feature: ', pred_y_im_av.shape)
+        print('True average imaginary feature: ', true_y_im_av.shape)
+
+        # ----------------------------------------------------- Return setting
+        if norm_type == 1:
+            return none_all
+        elif norm_type == 2:
+            return none_all, z_all
+        elif norm_type == 3:
+            return none_all, z_all, min_max_all
+        elif norm_type == 4:
+            return none_all, z_all, min_max_all, decimal_all
+
+        # --------------------------------------------------------------------
 
         # Get category averaged features
         cat_labels_pt = numpy.vstack([int(n) for n in test_label_pt])  # Category labels (perception test)
@@ -157,8 +300,8 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
                                 'roi': [roi, roi],
                                 'feature': [layer, layer],
                                 'test_type': ['perception', 'imagery'],
-                                'true_feature': [true_y_pt, true_y_im],
-                                'predicted_feature': [pred_y_pt, pred_y_im],
+                                'true_feature': [z_true_pt, z_true_im],
+                                'predicted_feature': [z_pred_pt, z_pred_im],
                                 'test_label': [test_label_pt, test_label_im],
                                 'test_label_set': [test_label_set_pt, test_label_set_im],
                                 'true_feature_averaged': [true_y_pt_av, true_y_im_av],
@@ -177,19 +320,7 @@ def data_prepare(subject, rois, img_feature, layer_all, voxel_all, repeat):
         print('Saved %s' % results_file)
 
 
-def avg_loss(array):
-    loss_avg = 0
-
-    for j in array:
-        loss_avg += j
-
-    return loss_avg / 1000
-
-
 def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, information: list, norm: (0, 1, 2, 3)):
-    # Plot setting for not python scientific model
-    # plt.figure(figsize=(10, 8))
-
     # Training iteration
     n_iter = 200
 
@@ -211,8 +342,8 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
         x_min = numpy.min(x_train)
         x_max = numpy.max(x_train)
 
-        x_train = (x_train - x_min) / (x_max - x_min)
-        x_test = (x_test - x_min) / (x_max - x_min)
+        x_train = (x_train - x_min) / (x_max - x_min) * 2 - 1
+        x_test = (x_test - x_min) / (x_max - x_min) * 2 - 1
 
     elif norm == 3:
         # Decimal Scaling
@@ -238,36 +369,43 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
 
     for i in range(1000):
 
-        print('Subject: %s, Roi: %s, Layer: %s, Voxel: %d' %
+        print('Subject: %s, Roi: %s, Layer: %s, Voxel: %d ##########################' %
               (information[0], information[1], information[2], i))
 
+        print('Pick y units %s.' % i)
         # Image feature normalization - for all data
         y_train_unit = y_train[:, i]
         y_test_unit = y_test[:, i]
         # ------------------------------------------
 
+        print('Compute normalizing parameters-------')
         # Normalization of image feature -----------------------------
+
+        print('1. Z-Score')
         # Z-Score -----------------------------------
         norm_mean_y = numpy.mean(y_train_unit, axis=0)
         std_y = numpy.std(y_train_unit, axis=0, ddof=1)
         norm_scale_y = 1 if std_y == 0 else std_y
         # ---------------------------------------------
 
+        print('2. Min-Max')
         # Min-Max ----------------
-        y_min = numpy.min(x_train)
-        y_max = numpy.max(x_train)
+        y_min = numpy.min(y_train_unit)
+        y_max = numpy.max(y_train_unit)
         # ------------------------
 
+        print('3. Decimal Scaling')
         # Decimal Scaling ----------------
-        y_train_abs = numpy.abs(y_train)
-        y_abs_max = numpy.max(y_train_abs)
+        y_train_unit_abs = numpy.abs(y_train_unit)
+        y_abs_max = numpy.max(y_train_unit_abs)
 
-        power = 0
-        while y_abs_max < 1:
+        power = 1
+        while y_abs_max > 1:
             y_abs_max /= 10
             power += 1
         # --------------------------------
 
+        print('Do normalizing ----------------------')
         if norm == 0:
             # No normalization
             y_train_unit = y_train_unit
@@ -279,11 +417,11 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
 
         elif norm == 2:
             # min-max
-            y_train = (y_train - y_min) / (y_max - y_min)
+            y_train_unit = (y_train_unit - y_min) / (y_max - y_min) * 2 - 1
 
         elif norm == 3:
             # Decimal Scaling
-            y_train = y_train / numpy.power(10, power)
+            y_train_unit = y_train_unit / numpy.power(10, power)
         # ------------------------------------------------------------
 
         # correlate with y and x------------------------------------------
@@ -306,15 +444,13 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
 
         # Training and test
         try:
+            print('Fitting model...')
             model.fit(x_train, y_train_unit)  # Training
+
+            print('Model predicting...')
             y_pred = model.predict(x_test)  # Test
 
         except Exception as e:
-            print('x_test_unit: ', x_test.shape)
-            print('y_test_unit: ', y_test_unit.shape)
-            print('x_train_unit: ', x_train.shape)
-            print('y_train_unit: ', y_train_unit.shape)
-
             print(e)
             y_pred = numpy.zeros(y_test_unit.shape)
 
@@ -323,6 +459,7 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
             y_pred = y_pred * norm_scale_y + norm_mean_y
 
         elif norm == 2:
+            y_pred = y_pred / 2 + 1
             y_pred = y_pred * (y_max - y_min) + y_min
 
         elif norm == 3:
@@ -330,6 +467,7 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test, num_voxel, infor
         # ----------------------------------------------
 
         y_pred_all.append(y_pred)
+        print('Finish-------------------------------')
 
         # -----------------------------------------------------------------------------------
         # ===================================================================================
@@ -350,7 +488,54 @@ def get_averaged_feature(pred_y, true_y, labels):
     return pred_y_av, true_y_av, labels_set
 
 
-# ======================================================================================================================
+def plot_pred_true_only(norm_pattern, title):
+    plt.suptitle(title)
+
+    plt.subplot(3, 1, 1)
+    plt.title('Predict image feature')
+    plt.bar(range(1000), norm_pattern[0, :])
+
+    plt.subplot(3, 1, 2)
+    plt.title('True image feature')
+    plt.bar(range(1000), norm_pattern[2, :])
+
+    bias = numpy.abs(norm_pattern[2, :] - norm_pattern[0, :])
+
+    plt.subplot(3, 1, 3)
+    plt.title('Bias')
+    plt.plot(range(1000), bias)
+
+
+def df_norm_avg_bias_plot(loss_list, title):
+    titles = numpy.array(['No norm', 'Z-Score', 'Min-Max', 'Decimal Scaling'])
+
+    loss_list = numpy.abs(loss_list)
+
+    plt.suptitle(title)
+    plt.bar(titles, loss_list)
+    plt.tight_layout()
+
+
+def sp_contrast(list_1, list_2, title, subtitle_1, subtitle_2):
+    plt.suptitle(title)
+
+    plt.subplot(311)
+    plt.title(subtitle_1)
+    plt.bar(range(1000), list_1[0, :])
+
+    plt.subplot(312)
+    plt.title(subtitle_2)
+    plt.bar(range(1000), list_2[0, :])
+
+    difference = numpy.abs(list_1[0, :] - list_2[0, :])
+
+    plt.subplot(313)
+    plt.title('Absolute Difference')
+    plt.plot(range(1000), difference)
+
+
+# ##########################################################################
+# ==========================================================================
 # Running part
 
 subjects = {'s1': os.path.abspath('bxz056/data/Subject1.h5'),
@@ -430,49 +615,8 @@ print('s1: %s\n'
 # 4: none, z-score, min-max, decimal
 
 repeat = 4
-titles = ['No norm', 'Z-Score', 'Min-Max', 'Decimal Scaling']
-
-norm_none, norm_z, norm_min_max, norm_decimal = data_prepare(dataset, regine_of_interest, image_feature,
-                                                                           layers, voxel, repeat=repeat)
-
-condition = 4
-
-average_loss = []
-
-loss_none = norm_none[1, :]
-loss_z = norm_z[1, :]
-loss_min_max = norm_min_max[1, :]
-loss_decimal = norm_decimal[1, :]
-
-average_loss = numpy.append(average_loss, avg_loss(loss_none), axis=0)
-average_loss = numpy.append(average_loss, avg_loss(loss_z), axis=0)
-average_loss = numpy.append(average_loss, avg_loss(loss_min_max), axis=0)
-average_loss = numpy.append(average_loss, avg_loss(loss_decimal), axis=0)
-
-plt.figure(figsize=(12, 12))
-plt.suptitle('Prediction with different normalization')
-
-plt.subplot(condition, 1, 1)
-plt.title('No normalization')
-plt.bar(range(1000), norm_none[0, :])
-
-plt.subplot(condition, 1, 2)
-plt.title('Z-score')
-plt.bar(range(1000), norm_z[0, :])
-
-plt.subplot(condition, 1, 3)
-plt.title('Min-Max')
-plt.bar(range(1000), norm_min_max[0, :])
-
-plt.subplot(6, 1, 4)
-plt.title('Decimal Scaling')
-plt.bar(range(1000), norm_decimal[0, :])
-
-average_loss = numpy.array(average_loss)
-print('average loss: ', average_loss.shape)
-
-plt.subplot(condition, 1, condition)
-plt.title('Difference')
-plt.bar(titles[:(repeat - 1)], average_loss)
-
-plt.tight_layout(rect=[0, 0, 1, 0.99])
+none, z, min_max, decimal = data_prepare(dataset,
+                                         regine_of_interest,
+                                         image_feature,
+                                         layers,
+                                         voxel, norm_type=repeat)
