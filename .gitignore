@@ -1,9 +1,10 @@
 .idea/
 venv/
 venv/Lib/site-packages/
-/Training/data/
-/MSc project/GenericObjectDecoding/
 /MSc Project/data/
-GenericObjectDecoding/
 Training/eeg_detector/
 /GenericObjectDecoding/.idea/
+/Training/fmri_data_training/data/
+/GenericObjectDecoding/data/
+/MSc Project/bxz056/.ipynb_checkpoints/
+/GenericObjectDecoding/venv/

@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import math
 
-maotai = pd.read_csv('./SH600519.csv')  # 读取股票文件
+maotai = pd.read_csv('SH600519.csv')  # 读取股票文件
 
 training_set = maotai.iloc[0:2426 - 300, 2:3].values  # 前(2426-300=2126)天的开盘价作为训练集,表格从0开始计数，2:3 是提取[2:3)列，前闭后开,故提取出C列开盘价
 test_set = maotai.iloc[2426 - 300:, 2:3].values  # 后300天的开盘价作为测试集

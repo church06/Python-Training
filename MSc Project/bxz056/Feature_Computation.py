@@ -538,12 +538,14 @@ def sp_contrast(list_1, list_2, title, subtitle_1, subtitle_2):
 # ==========================================================================
 # Running part
 
-subjects = {'s1': os.path.abspath('bxz056/data/Subject1.h5'),
-            's2': os.path.abspath('bxz056/data/Subject2.h5'),
-            's3': os.path.abspath('bxz056/data/Subject3.h5'),
-            's4': os.path.abspath('bxz056/data/Subject4.h5'),
-            's5': os.path.abspath('bxz056/data/Subject5.h5'),
-            'imageFeature': os.path.abspath('bxz056/data/ImageFeatures.h5')}
+folder_dir = 'MSc Project\\bxz056\\data\\'
+
+subjects = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
+            's2': os.path.abspath(folder_dir + 'Subject2.h5'),
+            's3': os.path.abspath(folder_dir + 'Subject3.h5'),
+            's4': os.path.abspath(folder_dir + 'Subject4.h5'),
+            's5': os.path.abspath(folder_dir + 'Subject5.h5'),
+            'imageFeature': os.path.abspath(folder_dir + 'ImageFeatures.h5')}
 
 regine_of_interest = {'VC': 'ROI_VC = 1',
                       'LVC': 'ROI_LVC = 1',

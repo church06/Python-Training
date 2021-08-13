@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Dropout, Dense, LSTM
+from tensorflow.keras.layers import Dropout, Dense, GRU
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import math
 
-maotai = pd.read_csv('./SH600519.csv')  # 读取股票文件
+maotai = pd.read_csv('SH600519.csv')  # 读取股票文件
 
 training_set = maotai.iloc[0:2426 - 300, 2:3].values  # 前(2426-300=2126)天的开盘价作为训练集,表格从0开始计数，2:3 是提取[2:3)列，前闭后开,故提取出C列开盘价
 test_set = maotai.iloc[2426 - 300:, 2:3].values  # 后300天的开盘价作为测试集
@@ -51,9 +51,9 @@ x_test, y_test = np.array(x_test), np.array(y_test)
 x_test = np.reshape(x_test, (x_test.shape[0], 60, 1))
 
 model = tf.keras.Sequential([
-    LSTM(80, return_sequences=True),
+    GRU(80, return_sequences=True),
     Dropout(0.2),
-    LSTM(100),
+    GRU(100),
     Dropout(0.2),
     Dense(1)
 ])
@@ -62,7 +62,7 @@ model.compile(optimizer=tf.keras.optimizers.Adam(0.001),
               loss='mean_squared_error')  # 损失函数用均方误差
 # 该应用只观测loss数值，不观测准确率，所以删去metrics选项，一会在每个epoch迭代显示时只显示loss值
 
-checkpoint_save_path = "./checkpoint/LSTM_stock.ckpt"
+checkpoint_save_path = "./checkpoint/stock.ckpt"
 
 if os.path.exists(checkpoint_save_path + '.index'):
     print('-------------load the model-----------------')
