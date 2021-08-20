@@ -12,3 +12,4 @@ Training/eeg_detector/
 /GenericObjectDecoding/venv/Scripts/
 GenericObjectDecoding/
 *.pyc
+*.hdf5
