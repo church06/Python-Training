@@ -8,3 +8,7 @@ Training/eeg_detector/
 /GenericObjectDecoding/data/
 /MSc Project/bxz056/.ipynb_checkpoints/
 /GenericObjectDecoding/venv/
+/GenericObjectDecoding/venv/Lib/
+/GenericObjectDecoding/venv/Scripts/
+GenericObjectDecoding/
+*.pyc
