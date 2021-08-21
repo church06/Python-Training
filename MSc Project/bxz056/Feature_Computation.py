@@ -15,74 +15,74 @@ from matplotlib import pyplot as plt
 # TODO: find the noise increase or decrease through different normalization technics
 # TODO: Noise precision β: means the distribution of noise. separate -> lower, gather -> higher
 
-def generic_objective_decoding(data_all, img_feature, layer_all, voxel_all, norm_type):
+def generic_objective_decoding(data_all, img_feature,
+                               sbj_num: str, layer: str, voxel_all: dict,
+                               norm_type, iteration):
     print('Data Preparing...')
 
-    # ROIs setting ------------------
-    subject_1 = 's1'
+    # Setting ------------------
+    subject = sbj_num
     roi_vc = ['VC', 'ROI_VC = 1']
 
     cor_voxel = voxel_all[roi_vc[0]]
     vc_mark = roi_vc[1]
-
-    iterTimes = 200
+    iterTimes = iteration
     # -------------------------------
 
-    print('Subject: %s, ROI: %s, Iteration: %s' % (subject_1, roi_vc[0], iterTimes))
+    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi_vc[0], iterTimes))
 
-    for layer in layer_all:
-        data = data_all[subject_1]
+    data = data_all[subject]
 
-        if norm_type == 0:
-            print('No normalizing ==========================')
-            none_all = get_result(data, img_feature, cor_voxel,
-                                  vc_mark, layer, 0, iterTimes)
+    if norm_type == 0:
+        print('No normalizing ==========================')
+        none_all = get_result(data, img_feature, cor_voxel,
+                              vc_mark, layer, 0, iterTimes)
 
-            return none_all
+        return none_all
 
-        elif norm_type == 1:
-            print('Z-score normalization using =============')
-            z_all = get_result(data, img_feature, cor_voxel,
-                               vc_mark, layer, 1, iterTimes)
+    elif norm_type == 1:
+        print('Z-score normalization using =============')
+        z_all = get_result(data, img_feature, cor_voxel,
+                           vc_mark, layer, 1, iterTimes)
 
-            return z_all
+        return z_all
 
-        elif norm_type == 2:
-            print('Min-Max normalization using =============')
-            min_max_all = get_result(data, img_feature, cor_voxel,
-                                     vc_mark, layer, 2, iterTimes)
+    elif norm_type == 2:
+        print('Min-Max normalization using =============')
+        min_max_all = get_result(data, img_feature, cor_voxel,
+                                 vc_mark, layer, 2, iterTimes)
 
-            return min_max_all
+        return min_max_all
 
-        elif norm_type == 3:
-            print('Decimal scaling normalization using ==============')
-            decimal_all = get_result(data, img_feature, cor_voxel,
-                                     vc_mark, layer, 3, iterTimes)
+    elif norm_type == 3:
+        print('Decimal scaling normalization using ==============')
+        decimal_all = get_result(data, img_feature, cor_voxel,
+                                 vc_mark, layer, 3, iterTimes)
 
-            return decimal_all
+        return decimal_all
 
-        elif norm_type == 'all':
+    elif norm_type == 'all':
 
-            print('No normalizing ==========================')
-            none_all = get_result(data, img_feature, cor_voxel,
-                                  vc_mark, layer, 0, iterTimes)
+        print('No normalizing ==========================')
+        none_all = get_result(data, img_feature, cor_voxel,
+                              vc_mark, layer, 0, iterTimes)
 
-            print('Z-score normalization using =============')
-            z_all = get_result(data, img_feature, cor_voxel,
-                               vc_mark, layer, 1, iterTimes)
+        print('Z-score normalization using =============')
+        z_all = get_result(data, img_feature, cor_voxel,
+                           vc_mark, layer, 1, iterTimes)
 
-            print('Min-Max normalization using =============')
-            min_max_all = get_result(data, img_feature, cor_voxel,
-                                     vc_mark, layer, 2, iterTimes)
+        print('Min-Max normalization using =============')
+        min_max_all = get_result(data, img_feature, cor_voxel,
+                                 vc_mark, layer, 2, iterTimes)
 
-            print('Decimal scaling normalization using ==============')
-            decimal_all = get_result(data, img_feature, cor_voxel,
-                                     vc_mark, layer, 3, iterTimes)
+        print('Decimal scaling normalization using ==============')
+        decimal_all = get_result(data, img_feature, cor_voxel,
+                                 vc_mark, layer, 3, iterTimes)
 
-            return none_all, z_all, min_max_all, decimal_all
+        return none_all, z_all, min_max_all, decimal_all
 
-        else:
-            print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
+    else:
+        print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
 
 
 # Algorithm part ==============================================================================
@@ -557,85 +557,8 @@ def neg_opt_value_ratio(x_list):
     return neg / opt
 
 
-def norm_pred_contrast(title: str):
-    # Compare predict data in each normalization with no normalization
-
-    # Pattern:
-    # 0 = separate seen & imaginary
-    # 1 = combined seen & imaginary
-
-    n_pt = none['pred_pt'][0, :]
-    n_im = none['pred_im'][0, :]
-
-    z_pt = z['pred_pt'][0, :]
-    z_im = z['pred_im'][0, :]
-
-    m_pt = min_max['pred_pt'][0, :]
-    m_im = min_max['pred_im'][0, :]
-
-    d_pt = decimal['pred_pt'][0, :]
-    d_im = decimal['pred_im'][0, :]
-
-    plt.suptitle(title + ' - Absolute Value')
-    plt.grid(True)
-
-    # No Normalization -------------------------
-    plt.subplot(421)
-    plt.title('No normalization Seen')
-    plt.bar(range(1000), numpy.abs(n_pt - n_pt))
-
-    plt.subplot(422)
-    plt.title('No normalization Imaginary')
-    plt.bar(range(1000), numpy.abs(n_im - n_im))
-    # ------------------------------------------
-
-    # Z-Score ----------------------------------
-    plt.subplot(423)
-    plt.title('Z-Score Seen')
-    plt.bar(range(1000), numpy.abs(n_pt - z_pt))
-
-    plt.subplot(424)
-    plt.title('Z-Score Imaginary')
-    plt.bar(range(1000), numpy.abs(n_im - z_im))
-    # ------------------------------------------
-
-    # Min-Max ----------------------------------
-    plt.subplot(425)
-    plt.title('Min-Max Seen')
-    plt.bar(range(1000), numpy.abs(n_pt - m_pt))
-
-    plt.subplot(426)
-    plt.title('Min-Max Imaginary')
-    plt.bar(range(1000), numpy.abs(n_im - m_im))
-    # ------------------------------------------
-
-    # Decimal Scaling --------------------------
-    plt.subplot(427)
-    plt.title('Decimal Scaling  Seen')
-    plt.bar(range(1000), numpy.abs(n_pt - d_pt))
-
-    plt.subplot(428)
-    plt.title('Decimal Scaling  Seen')
-    plt.bar(range(1000), numpy.abs(n_im - d_im))
-    # ------------------------------------------
 
 
-def time_plot():
-    times_second = [none['time'], z['time'], min_max['time'], decimal['time']]
-    labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
-    hours = numpy.array([])
-
-    for i in range(0, len(times_second)):
-        hour = times_second[i] / 3600
-        hours = numpy.append(hours, hour)
-
-    plt.title('Time Cost')
-    plt.ylabel('Hours')
-    plt.xlabel('Normalization Types')
-    plt.bar(labels, hours)
-
-
-# -------------------------------------------------------------------------------------
 
 # Save result ==============================================================
 def error_detected(name: str):
@@ -679,7 +602,7 @@ def save_to_hdf5(hdf5_dir: str, layer, tec: int, iteration: int, data_dict: dict
         target = layer_group.create_group('iter_' + str(iteration))
     except ValueError:
         print('Layer [%s] already exists, using it directly.' % layer)
-        target = layer_group['iter_200']
+        target = layer_group['iter_' + str(iteration)]
 
     try:
         sub = target.create_group(norm_tec[tec])
@@ -787,5 +710,6 @@ print('s1: %s\n'
 #   3: decimal
 #   all: all of them
 
-none, z, min_max, decimal = generic_objective_decoding(dataset, image_feature, layers, voxel,
-                                                       norm_type='all')
+none, z, min_max, decimal = generic_objective_decoding(dataset, image_feature,
+                                                       's1', 'cnn1', voxel,
+                                                       norm_type='all', iteration=100)
