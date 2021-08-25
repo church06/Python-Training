@@ -14,72 +14,79 @@ from bdpy.stats import corrcoef
 # TODO: find the noise increase or decrease through different normalization technics
 # TODO: Noise precision β: means the distribution of noise. separate -> lower, gather -> higher
 
-def generic_objective_decoding(data_all, img_feature,
-                               sbj_num: str, layer: str, voxel_all: dict,
-                               norm_type, iteration):
+def generic_objective_decoding(data_all, img_feature, roi, sbj_num: str, layer: str,
+                               norm_type):
+    roi_s = {'VC': 'ROI_VC = 1', 'LVC': 'ROI_LVC = 1', 'HVC': 'ROI_HVC = 1',
+             'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
+             'V4': 'ROI_V4 = 1',
+             'LOC': 'ROI_LOC = 1', 'FFA': 'ROI_FFA = 1', 'PPA': 'ROI_PPA = 1'}
+
+    voxel = {'VC': 1000, 'LVC': 1000, 'HVC': 1000,
+             'V1': 500, 'V2': 500, 'V3': 500,
+             'V4': 500,
+             'LOC': 500, 'FFA': 500, 'PPA': 500}
+
     print('Data Preparing...')
 
     # Setting ----------------------
     subject = sbj_num
-    roi_vc = ['VC', 'ROI_VC = 1']
 
-    cor_voxel = voxel_all[roi_vc[0]]
-    vc_mark = roi_vc[1]
-    iterTimes = iteration
+    cor_voxel = voxel[roi]
+    vc_mark = roi_s[roi]
     # ------------------------------
 
-    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi_vc[0], iterTimes))
+    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi, 200))
 
     data = data_all[subject]
 
     if norm_type == 0:
         print('No normalizing ==========================')
         none_all = get_result(data, img_feature, cor_voxel,
-                              vc_mark, layer, 0, iterTimes)
+                              vc_mark, layer, 0)
 
         return none_all
 
     elif norm_type == 1:
         print('Z-score normalization using =============')
         z_all = get_result(data, img_feature, cor_voxel,
-                           vc_mark, layer, 1, iterTimes)
+                           vc_mark, layer, 1)
 
         return z_all
 
     elif norm_type == 2:
         print('Min-Max normalization using =============')
         min_max_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 2, iterTimes)
+                                 vc_mark, layer, 2)
 
         return min_max_all
 
     elif norm_type == 3:
         print('Decimal scaling normalization using ==============')
         decimal_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 3, iterTimes)
+                                 vc_mark, layer, 3)
 
         return decimal_all
 
     elif norm_type == 'all':
 
         print('No normalizing ==========================')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 0, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 0)
 
         print('Z-score normalization using =============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 1, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 1)
 
         print('Min-Max normalization using =============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 2, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 2)
 
         print('Decimal scaling normalization using ==============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 3, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 3)
 
     else:
         print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
 
 
 # Algorithm part ==============================================================================
-def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int, iter_times: int):
+def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int):
     # data separate -----------------------------
     x = sbj_1.select(vc)
 
@@ -125,7 +132,7 @@ def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int, iter_t
     pred_y, true_y, a_list, w_list, g_list = algorithm_predict_feature(x_train=x_train, y_train=y_train,
                                                                        x_test=x_test, y_test=y_test,
                                                                        num_voxel=cor_voxels, information=[layer],
-                                                                       norm=norm_type, iter_num=iter_times)
+                                                                       norm=norm_type)
     decimal_pred = pred_y
     decimal_true = true_y
 
@@ -161,16 +168,16 @@ def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int, iter_t
               'weight': w_list,
               'gain': g_list}
 
-    save_to_hdf5(hdf5_dir=result_dir, layer=layer, tec=norm_type, iteration=iter_times, data_dict=output)
+    save_to_hdf5(hdf5_dir=result_dir, layer=layer, tec=norm_type, data_dict=output)
 
     return output
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test,
                               num_voxel, information: list,
-                              norm: (0, 1, 2, 3), iter_num: int):
+                              norm: (0, 1, 2, 3)):
     # Training iteration
-    n_iter = iter_num
+    n_iter = 200
 
     # Normalize brian data (x) --------------------------
     if norm == 0:
@@ -358,7 +365,7 @@ def error_detected(name: str):
             user_input = input('Unknown input. ' + content).lower().strip()
 
 
-def save_to_hdf5(hdf5_dir: str, layer, tec: int, iteration: int, data_dict: dict):
+def save_to_hdf5(hdf5_dir: str, layer, tec: int, data_dict: dict):
     print('Save to results.hdf5 !!!!!!')
 
     # r:        Read only
@@ -379,17 +386,11 @@ def save_to_hdf5(hdf5_dir: str, layer, tec: int, iteration: int, data_dict: dict
         layer_group = hdf5[layer]
 
     try:
-        target = layer_group.create_group('iter_' + str(iteration))
-    except ValueError:
-        print('Iter [%s] already exists, using it directly.' % iteration)
-        target = layer_group['iter_' + str(iteration)]
-
-    try:
-        sub = target.create_group(norm_tec[tec])
+        sub = layer_group.create_group(norm_tec[tec])
 
     except ValueError:
         print('Norm [%s] already exists, using it directly.' % norm_tec[tec])
-        sub = target[norm_tec[tec]]
+        sub = layer_group[norm_tec[tec]]
 
     for dt in dataTypes:
 
@@ -435,28 +436,6 @@ subjects = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
             's4': os.path.abspath(folder_dir + 'Subject4.h5'),
             's5': os.path.abspath(folder_dir + 'Subject5.h5'),
             'imageFeature': os.path.abspath(folder_dir + 'ImageFeatures.h5')}
-
-regine_of_interest = {'VC': 'ROI_VC = 1',
-                      'LVC': 'ROI_LVC = 1',
-                      'HVC': 'ROI_HVC = 1',
-                      'V1': 'ROI_V1 = 1',
-                      'V2': 'ROI_V2 = 1',
-                      'V3': 'ROI_V3 = 1',
-                      'V4': 'ROI_V4 = 1',
-                      'LOC': 'ROI_LOC = 1',
-                      'FFA': 'ROI_FFA = 1',
-                      'PPA': 'ROI_PPA = 1'}
-
-voxel = {'VC': 1000,
-         'LVC': 1000,
-         'HVC': 1000,
-         'V1': 500,
-         'V2': 500,
-         'V3': 500,
-         'V4': 500,
-         'LOC': 500,
-         'FFA': 500,
-         'PPA': 500}
 
 layers = ['cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8',
           'hmax1', 'hmax2', 'hmax3',
@@ -504,19 +483,14 @@ print('s1: %s\n'
 #   3: decimal
 #   all: all of them
 
-z = generic_objective_decoding(dataset, image_feature,
-                               's1', 'cnn1', voxel,
-                               norm_type=1, iteration=200)
+z = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
+                               sbj_num='s1', layer='cnn1', norm_type=1)
 
+min_max = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
+                                     sbj_num='s1', layer='cnn1', norm_type=2)
 
-min_max = generic_objective_decoding(dataset, image_feature,
-                                     's1', 'cnn1', voxel,
-                                     norm_type=2, iteration=200)
+decimal = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
+                                     sbj_num='s1', layer='cnn1', norm_type=3)
 
-decimal = generic_objective_decoding(dataset, image_feature,
-                                     's1', 'cnn1', voxel,
-                                     norm_type=3, iteration=200)
-
-none = generic_objective_decoding(dataset, image_feature,
-                                  's1', 'cnn1', voxel,
-                                  norm_type=0, iteration=200)
+none = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
+                                  sbj_num='s1', layer='cnn1', norm_type=0)
