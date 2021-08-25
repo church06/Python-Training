@@ -63,22 +63,16 @@ def generic_objective_decoding(data_all, img_feature,
     elif norm_type == 'all':
 
         print('No normalizing ==========================')
-        none_all = get_result(data, img_feature, cor_voxel,
-                              vc_mark, layer, 0, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 0, iterTimes)
 
         print('Z-score normalization using =============')
-        z_all = get_result(data, img_feature, cor_voxel,
-                           vc_mark, layer, 1, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 1, iterTimes)
 
         print('Min-Max normalization using =============')
-        min_max_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 2, iterTimes)
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 2, iterTimes)
 
         print('Decimal scaling normalization using ==============')
-        decimal_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 3, iterTimes)
-
-        return none_all, z_all, min_max_all, decimal_all
+        get_result(data, img_feature, cor_voxel, vc_mark, layer, 3, iterTimes)
 
     else:
         print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
@@ -319,8 +313,8 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
             y_pred = y_pred * norm_scale_y + norm_mean_y
 
         elif norm == 2:
+            y_pred = (y_pred + 1) / 2
             y_pred = y_pred * (y_max - y_min) + y_min
-            y_pred = y_pred / 2 + 1
 
         elif norm == 3:
             y_pred = y_pred * numpy.power(10, power)
@@ -398,11 +392,29 @@ def save_to_hdf5(hdf5_dir: str, layer, tec: int, iteration: int, data_dict: dict
         sub = target[norm_tec[tec]]
 
     for dt in dataTypes:
-        try:
-            sub.create_dataset(dt, data=data_dict[dt])
-        except RuntimeError:
-            del sub[dt]
-            sub.create_dataset(dt, data=data_dict[dt])
+
+        if dt != 'alpha' and dt != 'weight' and dt != 'gain':
+            try:
+                sub.create_dataset(dt, data=data_dict[dt])
+            except RuntimeError:
+                del sub[dt]
+                sub.create_dataset(dt, data=data_dict[dt])
+
+        else:
+            try:
+                group = sub.create_group(dt)
+            except ValueError:
+                print('Group [%s] already exists, using it directly.' % dt)
+                del sub[dt]
+                group = sub.create_group(dt)
+
+            for i in range(200):
+                mark = str(i)
+                try:
+                    group.create_dataset(mark, data=data_dict[dt][mark])
+                except RuntimeError:
+                    del group[dt][mark]
+                    group.create_dataset(mark, data=data_dict[dt][mark])
 
     print('Data Collected. (。・∀・)ノ\n')
 
@@ -492,6 +504,19 @@ print('s1: %s\n'
 #   3: decimal
 #   all: all of them
 
-none, z, min_max, decimal = generic_objective_decoding(dataset, image_feature,
-                                                       's1', 'cnn1', voxel,
-                                                       norm_type='all', iteration=200)
+z = generic_objective_decoding(dataset, image_feature,
+                               's1', 'cnn1', voxel,
+                               norm_type=1, iteration=200)
+
+
+min_max = generic_objective_decoding(dataset, image_feature,
+                                     's1', 'cnn1', voxel,
+                                     norm_type=2, iteration=200)
+
+decimal = generic_objective_decoding(dataset, image_feature,
+                                     's1', 'cnn1', voxel,
+                                     norm_type=3, iteration=200)
+
+none = generic_objective_decoding(dataset, image_feature,
+                                  's1', 'cnn1', voxel,
+                                  norm_type=0, iteration=200)

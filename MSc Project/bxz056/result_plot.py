@@ -93,100 +93,26 @@ def norm_pred_contrast(title: str, none, z, min_max, decimal):
     # ------------------------------------------
 
 
-# ----------------------------------------
-def box_plot_pt(none, z, min_max, decimal):
-    n_p_pt = none['pred_pt'][0, :]
-    z_p_pt = z['pred_pt'][0, :]
-    m_p_pt = min_max['pred_pt'][0, :]
-    d_p_pt = decimal['pred_pt'][0, :]
+def box_plot(pred_data, layer: str):
+    loc = pred_data[layer]['iter_200']
+    labels = ['none', 'z-score', 'min-max', 'decimal']
 
-    n_t_pt = none['true_pt'][0, :]
-    z_t_pt = z['true_pt'][0, :]
-    m_t_pt = min_max['true_pt'][0, :]
-    d_t_pt = decimal['true_pt'][0, :]
-
+    i = 0
     plt.suptitle('Box Plot - Seen Image Prediction & True')
 
-    plt.subplot(181)
-    plt.title('Prediction - No Normalization')
-    plt.boxplot(n_p_pt, showmeans=True)
+    for la in labels:
+        i += 1
 
-    plt.subplot(182)
-    plt.title('True - No Normalization')
-    plt.boxplot(n_t_pt, showmeans=True)
+        p_pt = loc[la]['pred_pt'][0, :]
+        p_im = loc[la]['pred_im'][0, :]
+        t_pt = loc[la]['true_pt'][0, :]
+        t_im = loc[la]['true_im'][0, :]
 
-    plt.subplot(183)
-    plt.title('Prediction - Z-Score')
-    plt.boxplot(z_p_pt, showmeans=True)
+        plt.subplot(2, 2, i)
+        plt.title(la)
+        plt.boxplot([p_pt, t_pt, p_im, t_im], notch=True, showmeans=True, patch_artist=True,
+                    labels=['Seen pred', 'Seen true', 'Imaginary pred', 'Imaginary true'])
 
-    plt.subplot(184)
-    plt.title('True - Z-Score')
-    plt.boxplot(z_t_pt, showmeans=True)
-
-    plt.subplot(185)
-    plt.title('Prediction - Min-Max')
-    plt.boxplot(m_p_pt, showmeans=True)
-
-    plt.subplot(186)
-    plt.title('True - Min-Max')
-    plt.boxplot(m_t_pt, showmeans=True)
-
-    plt.subplot(187)
-    plt.title('Prediction - Decimal')
-    plt.boxplot(d_p_pt, showmeans=True)
-
-    plt.subplot(188)
-    plt.title('True - Decimal')
-    plt.boxplot(d_t_pt, showmeans=True)
-
-
-def box_plot_im(none, z, min_max, decimal):
-    n_p_im = none['pred_im'][0, :]
-    z_p_im = z['pred_im'][0, :]
-    m_p_im = min_max['pred_im'][0, :]
-    d_p_im = decimal['pred_im'][0, :]
-
-    n_t_im = none['true_im'][0, :]
-    z_t_im = z['true_im'][0, :]
-    m_t_im = min_max['true_im'][0, :]
-    d_t_im = decimal['true_im'][0, :]
-
-    plt.suptitle('Box Plot - Seen Image Prediction & True')
-
-    plt.subplot(181)
-    plt.title('Prediction - No Normalization')
-    plt.boxplot(n_p_im, showmeans=True)
-
-    plt.subplot(182)
-    plt.title('True - No Normalization')
-    plt.boxplot(n_t_im, showmeans=True)
-
-    plt.subplot(183)
-    plt.title('Prediction - Z-Score')
-    plt.boxplot(z_p_im, showmeans=True)
-
-    plt.subplot(184)
-    plt.title('True - Z-Score')
-    plt.boxplot(z_t_im, showmeans=True)
-
-    plt.subplot(185)
-    plt.title('Prediction - Min-Max')
-    plt.boxplot(m_p_im, showmeans=True)
-
-    plt.subplot(186)
-    plt.title('True - Min-Max')
-    plt.boxplot(m_t_im, showmeans=True)
-
-    plt.subplot(187)
-    plt.title('Prediction - Decimal')
-    plt.boxplot(d_p_im, showmeans=True)
-
-    plt.subplot(188)
-    plt.title('True - Decimal')
-    plt.boxplot(d_t_im, showmeans=True)
-
-
-# ----------------------------------------
 
 # -------------------------------------
 def std_plot(results: dict, layer: str):
@@ -437,7 +363,7 @@ def mse_plot(data):
     norm = ['none', 'z-score', 'min-max', 'decimal']
 
     i = 0
-    plt.suptitle('MSE - for Different ')
+    plt.suptitle('MSE - for different normalization tec ')
 
     for n in norm:
         i += 1
@@ -462,6 +388,21 @@ def mse_plot(data):
 
         for x, y in zip(['Seen', 'Imaginary'], mse_list):
             plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
+
+
+def var_plot(data):
+    norm = ['none', 'z-score', 'min-max', 'decimal']
+
+    i = 0
+    plt.suptitle('MSE - for Different ')
+
+    for n in norm:
+        i += 1
+        pred_pt = data['cnn1']['iter_200'][n]['pred_pt']
+        true_pt = data['cnn1']['iter_200'][n]['true_pt']
+
+        pred_im = data['cnn1']['iter_200'][n]['pred_im']
+        true_im = data['cnn1']['iter_200'][n]['true_im']
 
 
 # ---------------------------------------------------
@@ -639,8 +580,8 @@ def neg_opt_value_ratio(x_list):
 
 
 # ---------------------------------------------------
-def merged_av_plot(data: dict, layer: str, iteration: int, data_type: str, pattern: int):
-    loc = data[layer]['iter_' + str(iteration)]
+def cor_merged_av_plot(data: dict, layer: str):
+    loc = data[layer]['iter_200']
 
     n_keys = ['none', 'z-score', 'min-max', 'decimal']
     d_keys = ['cor_pt_av', 'cor_im_av', 'cor_cat_pt_av', 'cor_cat_im_av']
@@ -661,44 +602,29 @@ def merged_av_plot(data: dict, layer: str, iteration: int, data_type: str, patte
         mean_cat_pt = numpy.mean(cor_cat_pt_av)
         mean_cat_im = numpy.mean(cor_cat_im_av)
 
-        if data_type == 'tru':
-            dataset = [cor_pt_av, cor_im_av]
-            mean_set = [mean_pt, mean_im]
-            x_label = ['mean_pt', 'mean_im']
-            mean_title = '[Pred - True]'
-            y_lim = 0.055
+        mean_set = [mean_pt, mean_im]
+        mean_cat_set = [mean_cat_pt, mean_cat_im]
 
-        elif data_type == 'cat':
-            dataset = [cor_cat_pt_av, cor_cat_im_av]
-            mean_set = [mean_cat_pt, mean_cat_im]
-            x_label = ['mean_cat_pt', 'mean_cat_im']
-            mean_title = '[Pred - Categories]'
-            y_lim = 0.125
+        x_label_tru = ['mean_pt', 'mean_im']
+        x_label_cat = ['mean_cat_pt', 'mean_cat_im']
 
-        else:
-            print("Unknown data type.（*゜ー゜*）")
-            break
+        y_lim = 0.13
 
-        if pattern == 0:
-            plt.subplot(2, 4, i)
-            plt.title(n_key + ' - Seen ' + mean_title)
-            plt.bar(range(50), dataset[0], color='royalblue')
+        plt.subplot(2, 4, i)
+        plt.title(n_key + ' - ' + '[Pred - True]')
+        plt.ylim(0, y_lim)
+        plt.bar(x_label_tru, [mean_pt, mean_im], color=['cornflowerblue', 'coral'])
 
-            i += 1
+        for x, y in zip(x_label_tru, mean_set):
+            plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
 
-            plt.subplot(2, 4, i)
-            plt.title(n_key + ' - Imaginary ' + mean_title)
-            plt.bar(range(50), dataset[1], color='coral')
+        plt.subplot(2, 4, i + 4)
+        plt.title(n_key + ' - ' + '[Pred - Categories]')
+        plt.ylim(0, y_lim)
+        plt.bar(x_label_cat, mean_cat_set, color=['cornflowerblue', 'coral'])
 
-        elif pattern == 1:
-            plt.subplot(1, 4, i)
-            plt.title(n_key + ' - ' + mean_title)
-            plt.ylim(0, y_lim)
-            plt.bar(x_label, mean_set, color=['royalblue', 'coral'])
-
-        else:
-            print('Unknown pattern. (´･ω･`)?')
-            break
+        for x, y in zip(x_label_cat, mean_cat_set):
+            plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
 
 
 # =======================

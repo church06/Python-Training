@@ -1,9 +1,37 @@
+from itertools import product
+
+import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
 
 def main():
-    zero_mean_gaussian_random_test()
+    file = h5py.File('G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\HDF5s\\test.hdf5', 'a')
+
+    test = {}
+    test_2 = {}
+
+    for i in range(0, 100):
+        test_2[str(i)] = i
+
+    test['test'] = test_2
+
+    key_1 = list(test.keys())
+    key_2 = list(test[key_1[0]].keys())
+
+    print('key_1: ', key_1)
+    print('key_2', key_2)
+
+    for k_1, k_2 in product(key_1, key_2):
+        try:
+            loc = file.create_group(k_1)
+
+        except ValueError:
+            loc = file[k_1]
+
+        loc.create_dataset(k_2, data=test[k_1][k_2])
+
+    file.close()
 
 
 def shape_test_data_na():
