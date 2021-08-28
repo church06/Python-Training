@@ -1,37 +1,156 @@
-import os
-
 import bdpy
-import h5py
 import numpy
 import sklearn.metrics as sklearn
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
 from matplotlib import pyplot as plt
+import Tools
 
 
-def time_plot(data, layer: str):
-    loc = data[layer]
-    i_keys = ['iter_50', 'iter_100', 'iter_150', 'iter_200']
-
-    labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
-
-    plt.suptitle('Time Cost')
+def time_plot(data: dict, layer: str):
+    roi_s = list(data.keys())
 
     i = 0
-    for i_key in i_keys:
+    for roi in roi_s:
         i += 1
+        loc = data[roi][layer]
+        labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
 
-        n_t = loc[i_key]['none']['time']
-        z_t = loc[i_key]['z-score']['time']
-        m_t = loc[i_key]['min-max']['time']
-        d_t = loc[i_key]['decimal']['time']
+        plt.suptitle('Time Cost')
+
+        n_t = loc['none']['time']
+        z_t = loc['z-score']['time']
+        m_t = loc['min-max']['time']
+        d_t = loc['decimal']['time']
 
         times = numpy.array([n_t, z_t, m_t, d_t]) / 3600
 
-        plt.subplot(2, 2, i)
-        plt.title(i_key)
-        plt.ylim(0, 3.5)
-        plt.bar(labels, times, color='royalblue')
+        plt.subplot(2, int(len(roi_s) / 2), i)
+        plt.title(roi + ' - ' + layer)
+        plt.ylim(0, 1.5)
+        plt.bar(labels, times, color='cornflowerblue')
+
+        for x, y in zip(labels, times):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+
+def dropped_unit_plot(result_data, roi: str, layer: str, mode: str):
+    n_d_list = numpy.array([])
+    z_d_list = numpy.array([])
+    m_d_list = numpy.array([])
+    d_d_list = numpy.array([])
+
+    roi_c = roi.upper()
+
+    for i in range(0, 200):
+        n_d_list = numpy.append(n_d_list, len(result_data[roi_c][layer]['none']['alpha'][str(i)]))
+        z_d_list = numpy.append(z_d_list, len(result_data[roi_c][layer]['z-score']['alpha'][str(i)]))
+        m_d_list = numpy.append(m_d_list, len(result_data[roi_c][layer]['min-max']['alpha'][str(i)]))
+        d_d_list = numpy.append(d_d_list, len(result_data[roi_c][layer]['decimal']['alpha'][str(i)]))
+
+    if mode == 'gather':
+        plt.title('Dropped Units')
+
+        plt.plot(n_d_list, label='No normalization', color='orangered')
+        plt.plot(d_d_list, label='Decimal Scaling', color='orange')
+        plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
+        plt.plot(z_d_list, label='Z-Score', color='cornflowerblue')
+
+    elif mode == 'separate':
+        plt.suptitle('Dropped Units')
+
+        plt.subplot(411)
+        plt.title('No normalization')
+        plt.plot(n_d_list, label='No normalization', color='orangered')
+
+        for x, y in zip(range(len(n_d_list)), n_d_list):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+        plt.subplot(412)
+        plt.title('Z-Score')
+        plt.plot(z_d_list, label='Z-Score', color='orange')
+
+        for x, y in zip(range(len(z_d_list)), z_d_list):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+        plt.subplot(413)
+        plt.title('Min-Max')
+        plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
+
+        for x, y in zip(range(len(m_d_list)), m_d_list):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+        plt.subplot(414)
+        plt.title('Decimal Scaling')
+        plt.plot(d_d_list, label='Min-Max', color='cornflowerblue')
+
+        for x, y in zip(range(len(d_d_list)), d_d_list):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+
+def min_max_value_plot(data: dict, roi: str, layer: str):
+    target = data[roi.upper()][layer]
+    labels = ['None', 'Z-Score', 'Min-Max', 'Decimal']
+
+    t_min = numpy.array([])
+    t_max = numpy.array([])
+
+    y_min = numpy.array([])
+    y_max = numpy.array([])
+
+    for t in ['n_train', 'z_train', 'm_train', 'd_train']:
+        MIN = min(target[t][0, :])
+        MAX = max(target[t][0, :])
+        t_min = numpy.append(t_min, MIN)
+        t_max = numpy.append(t_max, MAX)
+
+    for F in ['n_y', 'z_y', 'm_y', 'd_y']:
+        MIN = min(target[F])
+        MAX = max(target[F])
+
+        y_min = numpy.append(y_min, MIN)
+        y_max = numpy.append(y_max, MAX)
+
+    bias_max = numpy.abs(t_max - y_max)
+    bias_min = -(t_min - y_min)
+
+    plt.suptitle('Min & Max Value')
+
+    plt.subplot(131)
+    plt.title('Training data')
+    plt.ylim(-10, 10)
+    plt.bar(labels, t_max, color='cornflowerblue')
+    plt.bar(labels, t_min, color='coral')
+
+    for x, y in zip(labels, t_max):
+        plt.text(x, 0.1, '%.3f' % y, ha='center', va='bottom')
+
+    for x, y in zip(labels, t_min):
+        plt.text(x, -0.4, '%.3f' % y, ha='center', va='bottom')
+
+    plt.subplot(132)
+    plt.title('True data')
+    plt.ylim(-10, 10)
+    plt.bar(labels, y_max, color='cornflowerblue')
+    plt.bar(labels, y_min, color='coral')
+
+    for x, y in zip(labels, y_max):
+        plt.text(x, 0.1, '%.5f' % y, ha='center', va='bottom')
+
+    for x, y in zip(labels, y_min):
+        plt.text(x, -0.4, '%.5f' % y, ha='center', va='bottom')
+
+    plt.subplot(133)
+    plt.title('Bias between Max & Min')
+    plt.ylim(-10, 10)
+    plt.bar(labels, bias_max, color='cornflowerblue')
+    plt.bar(labels, bias_min, color='coral')
+
+    for x, y in zip(labels, bias_max):
+        plt.text(x, 0.1, '%.5f' % y, ha='center', va='bottom')
+
+    for x, y in zip(labels, bias_min):
+        plt.text(x, -0.4, '%.5f' % y, ha='center', va='bottom')
 
 
 def norm_pred_contrast(title: str, none, z, min_max, decimal):
@@ -114,10 +233,51 @@ def box_plot(pred_data, layer: str):
                     labels=['Seen pred', 'Seen true', 'Imaginary pred', 'Imaginary true'])
 
 
-# -------------------------------------
+def outlier_plot(data: dict, roi: str, mode: str):
+    loc = data[roi.upper()]
+
+    labels = ['n_train', 'z_train', 'm_train', 'd_train']
+    x_labels = ['None', 'Z-Score', 'Min-Max', 'Decimal']
+    colors = ['coral', 'cornflowerblue', 'violet', 'lightgreen']
+
+    if mode == 'bar':
+        o_list = numpy.array([])
+
+        for LAB in labels:
+            tr = loc[LAB]
+
+            q1 = numpy.percentile(tr, 25)
+            q3 = numpy.percentile(tr, 75)
+            iqr = q3 - q1
+            boundary = iqr * 1.5
+
+            outlier = 0
+            for i in range(0, 1000):
+                num = tr[0, i]
+                if num < (q1 - boundary) or num > (q3 + boundary):
+                    outlier += 1
+
+            o_list = numpy.append(o_list, outlier)
+
+        plt.title('Number of Outliers')
+        plt.bar(x_labels, o_list, color='cornflowerblue')
+
+        for x, y in zip(x_labels, o_list):
+            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+    elif mode == 'scatter':
+        for LAB in labels:
+            data = loc[LAB]
+            rand = numpy.random.randint(0, 4)
+
+            plt.title('Number of Outliers')
+            plt.scatter(data[0, :], data[0, :], color=colors[rand], alpha=0.5, label=LAB)
+            plt.legend()
+
+
+# ========================================
 def std_plot(results: dict, layer: str):
-    test_dataset = read_xy_std_data(layer)[layer]
-    loc = results[layer]['iter_200']
+    loc = results[layer]
 
     labels = ['none', 'z-score', 'min-max', 'decimal']
 
@@ -127,11 +287,11 @@ def std_plot(results: dict, layer: str):
 
     x_test_std = numpy.array([])
     for k in x_test_keys:
-        x_test_std = numpy.append(x_test_std, test_dataset[k])
+        x_test_std = numpy.append(x_test_std, loc[k])
 
     y_std = numpy.array([])
     for k in y_keys:
-        y_std = numpy.append(y_std, test_dataset[k])
+        y_std = numpy.append(y_std, loc[k])
 
     pred_std = numpy.array([])
     for la in labels:
@@ -140,7 +300,7 @@ def std_plot(results: dict, layer: str):
 
     x_train_std = numpy.array([])
     for tr in x_train_keys:
-        x_train_std = numpy.append(x_train_std, test_dataset[tr])
+        x_train_std = numpy.append(x_train_std, loc[tr])
 
     plt.suptitle('STD Difference')
 
@@ -185,178 +345,7 @@ def std_plot(results: dict, layer: str):
     # -------------------------------------------------------------
 
 
-def create_xy_std_data(layer: str):
-    print("Creating ['%s'] test data by normalization: [none, z-score, min-max, decimal]" % layer)
-
-    file = h5py.File('G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\HDF5s\\xy_std_data.hdf5',
-                     'a')
-
-    # Labels -----------------------------
-    s1, img = read_subject_1()
-    labels = s1.select('stimulus_id')
-    data_type = s1.select('DataType')
-
-    i_train = (data_type == 1).flatten()
-
-    i_test_pt = (data_type == 2).flatten()
-    i_test_im = (data_type == 3).flatten()
-    i_test = i_test_im + i_test_pt
-    # ------------------------------------
-
-    # Image Feature -----------------------------
-    y = img.select(layer)
-    y_label = img.select('ImageID')
-    y_sort = bdpy.get_refdata(y, y_label, labels)
-
-    y_train = y_sort[i_train, :]
-    y_train_unit = y_train[:, 0]
-    # -------------------------------------------
-
-    # fMRI data -----------------------------------------------------------------------------------
-    x = s1.select('ROI_VC = 1')
-    x_train = x[i_train, :]
-    x_test = x[i_test, :]
-    print('x_test: ', x_test.shape)
-    correlation = corrcoef(y_train_unit, x_train, var='col')
-
-    print('correlated...')
-    x_train, voxel_index = select_top(x_train, numpy.abs(correlation), 1000, axis=1, verbose=False)
-    x_test = x_test[:, voxel_index]
-    print('x_test: ', x_test.shape)
-    # ---------------------------------------------------------------------------------------------
-
-    print()
-
-    # No Normalization ------
-    n_test = x_test
-    n_test_std = numpy.std(x_test)
-
-    n_train = x_train
-    n_train_std = numpy.std(x_train)
-
-    n_y = y_train_unit
-    n_y_std = numpy.std(n_y)
-
-    print('n_test: ', n_test.shape)
-    print('n_y: ', n_y.shape)
-    # -----------------------
-
-    # Z-Score -----------------------------------------
-    norm_mean_x = numpy.mean(x_train, axis=0)
-    norm_scale_x = numpy.std(x_train, axis=0, ddof=1)
-
-    norm_mean_y = numpy.mean(y_train_unit, axis=0)
-    std_y = numpy.std(y_train_unit, axis=0, ddof=1)
-    norm_scale_y = 1 if std_y == 0 else std_y
-
-    z_test = (x_test - norm_mean_x) / norm_scale_x
-    z_test_std = numpy.std(z_test)
-
-    z_train = (x_train - norm_mean_x) / norm_scale_x
-    z_train_std = numpy.std(z_train)
-
-    z_y = (y_train_unit - norm_mean_y) / norm_scale_y
-    z_y_std = numpy.std(z_y)
-
-    print('z_test: ', z_test.shape)
-    print('z_y: ', z_y.shape)
-    # -------------------------------------------------
-
-    # Min-Max -----------------------------------------
-    x_min = numpy.min(x_train)
-    x_max = numpy.max(x_train)
-
-    y_min = numpy.min(y_train_unit)
-    y_max = numpy.max(y_train_unit)
-
-    m_test = (x_test - x_min) / (x_max - x_min) * 2 - 1
-    m_test_std = numpy.std(m_test)
-
-    m_train = (x_train - x_min) / (x_max - x_min) * 2 - 1
-    m_train_std = numpy.std(m_train)
-
-    m_y = (y_train_unit - y_min) / (y_max - y_min) * 2 - 1
-    m_y_std = numpy.std(m_y)
-
-    print('m_test: ', m_test.shape)
-    print('m_y: ', m_y.shape)
-    # -------------------------------------------------
-
-    # Decimal Scaling ----------------------
-    x_train_abs = numpy.abs(x_train)
-    x_abs_max = numpy.max(x_train_abs)
-
-    power = 1
-    while x_abs_max > 1:
-        x_abs_max /= 10
-        power += 1
-
-    y_train_unit_abs = numpy.abs(y_train_unit)
-    y_abs_max = numpy.max(y_train_unit_abs)
-
-    power_y = 1
-    while y_abs_max > 1:
-        y_abs_max /= 10
-        power_y += 1
-
-    d_test = x_test / numpy.power(10, power)
-    d_test_std = numpy.std(d_test)
-
-    d_train = x_train / numpy.power(10, power)
-    d_train_std = numpy.std(d_train)
-
-    d_y = y_train_unit / numpy.power(10, power_y)
-    d_y_std = numpy.std(d_y)
-
-    print('d_test: ', d_test.shape)
-    print('d_y: ', d_y.shape)
-    # --------------------------------------
-
-    labels = {'n_train': n_train, 'z_train': z_train, 'm_train': m_train, 'd_train': d_train,
-              'n_train_std': n_train_std, 'z_train_std': z_train_std,
-              'm_train_std': m_train_std, 'd_train_std': d_train_std,
-              'n_test': n_test, 'z_test': z_test, 'm_test': m_test, 'd_test': d_test,
-              'n_test_std': n_test_std, 'z_test_std': z_test_std,
-              'm_test_std': m_test_std, 'd_test_std': d_test_std,
-              'n_y': n_y, 'z_y': z_y, 'm_y': m_y, 'd_y': d_y,
-              'n_y_std': n_y_std, 'z_y_std': z_y_std, 'm_y_std': m_y_std, 'd_y_std': d_y_std}
-
-    try:
-        target = file.create_group(layer)
-    except ValueError:
-        target = file[layer]
-
-    for lab in labels:
-        try:
-            target.create_dataset(lab, data=numpy.array(labels[lab]))
-
-        except RuntimeError:
-            del target[lab]
-            target.create_dataset(lab, data=numpy.array(labels[lab]))
-
-    file.close()
-
-
-def read_xy_std_data(layer: str):
-    path = 'G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\HDF5s\\xy_std_data.hdf5'
-    file = h5py.File(path, 'r')
-    group = file[layer]
-
-    keys = list(group.keys())
-
-    output = {}
-    data = {}
-
-    for k in keys:
-        data[k] = numpy.array(group[k])
-
-    output[layer] = data
-
-    file.close()
-    return output
-
-
-# -------------------------------------
+# =====================================
 
 
 def mse_plot(data):
@@ -390,7 +379,7 @@ def mse_plot(data):
             plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
 
 
-def var_plot(data):
+def var_plot(data, roi: str, layer: str):
     norm = ['none', 'z-score', 'min-max', 'decimal']
 
     i = 0
@@ -398,11 +387,11 @@ def var_plot(data):
 
     for n in norm:
         i += 1
-        pred_pt = data['cnn1']['iter_200'][n]['pred_pt']
-        true_pt = data['cnn1']['iter_200'][n]['true_pt']
+        pred_pt = data[roi][layer][n]['pred_pt']
+        true_pt = data[roi][layer][n]['true_pt']
 
-        pred_im = data['cnn1']['iter_200'][n]['pred_im']
-        true_im = data['cnn1']['iter_200'][n]['true_im']
+        pred_im = data[roi][layer][n]['pred_im']
+        true_im = data[roi][layer][n]['true_im']
 
 
 # ---------------------------------------------------
@@ -415,7 +404,7 @@ def norm_trainSet_contrast(title: str, pattern: int):
     # 2 = Negative value occupation
 
     # Get x ---------------------------------
-    data, image_feature = read_subject_1()
+    data, image_feature = Tools.read_subject_1()
     x = data.select('ROI_VC = 1')
     # ---------------------------------------
 
@@ -551,20 +540,6 @@ def norm_trainSet_contrast(title: str, pattern: int):
         print('Unknown pattern. (っ °Д °;)っ')
 
 
-def read_subject_1():
-    print('Read subject data')
-
-    folder_dir = 'G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\data\\'
-
-    path = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
-            'imageFeature': os.path.abspath(folder_dir + 'ImageFeatures.h5')}
-
-    s1 = bdpy.BData(path['s1'])
-    img = bdpy.BData(path['imageFeature'])
-
-    return s1, img
-
-
 def neg_opt_value_ratio(x_list):
     neg = 0
     opt = 0
@@ -580,8 +555,8 @@ def neg_opt_value_ratio(x_list):
 
 
 # ---------------------------------------------------
-def cor_merged_av_plot(data: dict, layer: str):
-    loc = data[layer]['iter_200']
+def cor_merged_av_plot(data: dict, roi: str, layer: str):
+    loc = data[roi][layer]
 
     n_keys = ['none', 'z-score', 'min-max', 'decimal']
     d_keys = ['cor_pt_av', 'cor_im_av', 'cor_cat_pt_av', 'cor_cat_im_av']
@@ -627,65 +602,14 @@ def cor_merged_av_plot(data: dict, layer: str):
             plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
 
 
-# =======================
-def read_data(path: str):
-    print('Getting File...')
-
-    file = h5py.File(path, 'r')
-
-    output = {}
-    layer_list = list(file.keys())
-
-    for layer in layer_list:
-        iter_list = list(file[layer].keys())
-
-        # collect iterations
-        iter_dict = {}
-        for iteration in iter_list:
-            norm_list = list(file[layer][iteration].keys())
-
-            # collect normalizations
-            norm_dict = {}
-            for norm in norm_list:
-                target = file[layer][iteration][norm]
-                type_list = list(target.keys())
-
-                data_dict = {}
-                for data_type in type_list:
-                    data_dict[data_type] = numpy.array(target[data_type])
-
-                norm_dict[norm] = data_dict
-            iter_dict[iteration] = norm_dict
-        output[layer] = iter_dict
-
-    file.close()
-
-    return output
-
-
-def read_cat(path: str):
-    print('Getting categories.')
-    file = h5py.File(path, 'r')
-
-    keys = ['cat_pt_av', 'cat_im_av', 'cat_pt_label', 'cat_im_label']
-
-    output = {}
-
-    for key in keys:
-        output[key] = numpy.array(file[key])
-
-    return output
-
-
-# =======================
-
+# =====================================================================================
 # -------------------------------------------------------------------------------------
-data_dir = 'G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\HDF5s\\'
+data_dir = 'HDF5s\\'
 
-result_file = data_dir + 'results.hdf5'
+result_file = data_dir + 's1.hdf5'
 cat_file = data_dir + 'cat_data.hdf5'
 merge_file = data_dir + 'mergedResult.hdf5'
 
-result = read_data(result_file)
-merged = read_data(merge_file)
-category = read_cat(cat_file)
+result = Tools.read_result_data('s1')
+merged_result = Tools.read_merged_data('s1')
+xy_train_std = Tools.read_xy_std_data('s1')

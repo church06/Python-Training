@@ -8,6 +8,7 @@ import slir
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
+import Tools
 
 
 # TODO: find the phenomenon of normalization cause algorithm understand the data or misunderstand the data
@@ -16,6 +17,58 @@ from bdpy.stats import corrcoef
 
 def generic_objective_decoding(data_all, img_feature, roi, sbj_num: str, layer: str,
                                norm_type):
+    print('Data Preparing...')
+
+    # Setting ----------------------
+    subject = sbj_num
+    # ------------------------------
+
+    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi, 200))
+
+    data = data_all[subject]
+
+    if norm_type == 0:
+        print('No normalizing ==========================')
+        none_all = get_result(data, img_feature, sbj_num, roi, layer, 0)
+
+        return none_all
+
+    elif norm_type == 1:
+        print('Z-score normalization using =============')
+        z_all = get_result(data, img_feature, sbj_num, roi, layer, 1)
+
+        return z_all
+
+    elif norm_type == 2:
+        print('Min-Max normalization using =============')
+        min_max_all = get_result(data, img_feature, sbj_num, roi, layer, 2)
+
+        return min_max_all
+
+    elif norm_type == 3:
+        print('Decimal scaling normalization using ==============')
+        decimal_all = get_result(data, img_feature, sbj_num, roi, layer, 3)
+
+        return decimal_all
+
+    elif norm_type == 'all':
+        print('Z-score normalization using =============')
+        get_result(data, img_feature, sbj_num, roi, layer, 1)
+
+        print('Min-Max normalization using =============')
+        get_result(data, img_feature, sbj_num, roi, layer, 2)
+
+        print('Decimal scaling normalization using ==============')
+        get_result(data, img_feature, sbj_num, roi, layer, 3)
+
+        print('No normalizing ==========================')
+        get_result(data, img_feature, sbj_num, roi, layer, 0)
+    else:
+        print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
+
+
+# Algorithm part ==============================================================================
+def get_result(S_data, img_feature, S: str, R, L, N: int):
     roi_s = {'VC': 'ROI_VC = 1', 'LVC': 'ROI_LVC = 1', 'HVC': 'ROI_HVC = 1',
              'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
              'V4': 'ROI_V4 = 1',
@@ -26,74 +79,15 @@ def generic_objective_decoding(data_all, img_feature, roi, sbj_num: str, layer: 
              'V4': 500,
              'LOC': 500, 'FFA': 500, 'PPA': 500}
 
-    print('Data Preparing...')
-
-    # Setting ----------------------
-    subject = sbj_num
-
-    cor_voxel = voxel[roi]
-    vc_mark = roi_s[roi]
-    # ------------------------------
-
-    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi, 200))
-
-    data = data_all[subject]
-
-    if norm_type == 0:
-        print('No normalizing ==========================')
-        none_all = get_result(data, img_feature, cor_voxel,
-                              vc_mark, layer, 0)
-
-        return none_all
-
-    elif norm_type == 1:
-        print('Z-score normalization using =============')
-        z_all = get_result(data, img_feature, cor_voxel,
-                           vc_mark, layer, 1)
-
-        return z_all
-
-    elif norm_type == 2:
-        print('Min-Max normalization using =============')
-        min_max_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 2)
-
-        return min_max_all
-
-    elif norm_type == 3:
-        print('Decimal scaling normalization using ==============')
-        decimal_all = get_result(data, img_feature, cor_voxel,
-                                 vc_mark, layer, 3)
-
-        return decimal_all
-
-    elif norm_type == 'all':
-
-        print('No normalizing ==========================')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 0)
-
-        print('Z-score normalization using =============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 1)
-
-        print('Min-Max normalization using =============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 2)
-
-        print('Decimal scaling normalization using ==============')
-        get_result(data, img_feature, cor_voxel, vc_mark, layer, 3)
-
-    else:
-        print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
-
-
-# Algorithm part ==============================================================================
-def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int):
     # data separate -----------------------------
-    x = sbj_1.select(vc)
+    cor_voxel = voxel[R]
+    roi_mark = roi_s[R]
+    x = S_data.select(roi_mark)
 
-    data_type = sbj_1.select('DataType')
-    labels = sbj_1.select('stimulus_id')
+    data_type = S_data.select('DataType')
+    labels = S_data.select('stimulus_id')
 
-    y = img_feature.select(layer)
+    y = img_feature.select(L)
     y_label = img_feature.select('ImageID')
     y_sort = bdpy.get_refdata(y, y_label, labels)
 
@@ -131,8 +125,8 @@ def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int):
 
     pred_y, true_y, a_list, w_list, g_list = algorithm_predict_feature(x_train=x_train, y_train=y_train,
                                                                        x_test=x_test, y_test=y_test,
-                                                                       num_voxel=cor_voxels, information=[layer],
-                                                                       norm=norm_type)
+                                                                       num_voxel=cor_voxel, information=[L],
+                                                                       norm=N)
     decimal_pred = pred_y
     decimal_true = true_y
 
@@ -168,8 +162,7 @@ def get_result(sbj_1, img_feature, cor_voxels, vc, layer, norm_type: int):
               'weight': w_list,
               'gain': g_list}
 
-    save_to_hdf5(hdf5_dir=result_dir, layer=layer, tec=norm_type, data_dict=output)
-
+    Tools.save_to_result(S=S, L=L, R=R, N=N, data_dict=output)
     return output
 
 
@@ -364,71 +357,11 @@ def error_detected(name: str):
         else:
             user_input = input('Unknown input. ' + content).lower().strip()
 
-
-def save_to_hdf5(hdf5_dir: str, layer, tec: int, data_dict: dict):
-    print('Save to results.hdf5 !!!!!!')
-
-    # r:        Read only
-    # r+:       Read / write, file must exist
-    # w:        Create file, truncate if exists
-    # w- / x:   Create file, fail if exists
-    # a:        Read/write if exists, create otherwise
-    dataTypes = list(data_dict.keys())
-
-    norm_tec = ['none', 'z-score', 'min-max', 'decimal']
-
-    hdf5 = h5py.File(hdf5_dir, 'a')
-
-    try:
-        layer_group = hdf5.create_group(layer)
-    except ValueError:
-        print('Layer [%s] already exists, using it directly.' % layer)
-        layer_group = hdf5[layer]
-
-    try:
-        sub = layer_group.create_group(norm_tec[tec])
-
-    except ValueError:
-        print('Norm [%s] already exists, using it directly.' % norm_tec[tec])
-        sub = layer_group[norm_tec[tec]]
-
-    for dt in dataTypes:
-
-        if dt != 'alpha' and dt != 'weight' and dt != 'gain':
-            try:
-                sub.create_dataset(dt, data=data_dict[dt])
-            except RuntimeError:
-                del sub[dt]
-                sub.create_dataset(dt, data=data_dict[dt])
-
-        else:
-            try:
-                group = sub.create_group(dt)
-            except ValueError:
-                print('Group [%s] already exists, using it directly.' % dt)
-                del sub[dt]
-                group = sub.create_group(dt)
-
-            for i in range(200):
-                mark = str(i)
-                try:
-                    group.create_dataset(mark, data=data_dict[dt][mark])
-                except RuntimeError:
-                    del group[dt][mark]
-                    group.create_dataset(mark, data=data_dict[dt][mark])
-
-    print('Data Collected. (。・∀・)ノ\n')
-
-    hdf5.close()
-
-
 # --------------------------------------------------------------------------
 
 # Run Program ================================================================================
 
-folder_dir = 'MSc Project\\bxz056\\data\\'
-plot_result_dir = 'MSc Project\\bxz056\\plots\\results\\'
-result_dir = 'G:\\Entrance\\Coding_Training\\PythonProgram\\MSc Project\\bxz056\\HDF5s\\results.hdf5'
+folder_dir = 'data\\'
 
 subjects = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
             's2': os.path.abspath(folder_dir + 'Subject2.h5'),
@@ -476,21 +409,21 @@ print('s1: %s\n'
 
 # ---------------------------------------------------------------
 
+targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
+           'V4': 'ROI_V4 = 1',
+           'LOC': 'ROI_LOC = 1', 'FFA': 'ROI_FFA = 1', 'PPA': 'ROI_PPA = 1'}
+
 # norm_type (for different normalization):
-#   0: none
-#   1: z-score
-#   2: min-max
-#   3: decimal
-#   all: all of them
+#   0:     none
+#   1:     z-score
+#   2:     min-max
+#   3:     decimal
+#   all:   all of them (no return)
 
-z = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
-                               sbj_num='s1', layer='cnn1', norm_type=1)
-
-min_max = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
-                                     sbj_num='s1', layer='cnn1', norm_type=2)
-
-decimal = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
-                                     sbj_num='s1', layer='cnn1', norm_type=3)
-
-none = generic_objective_decoding(data_all=dataset, img_feature=image_feature, roi='VC',
-                                  sbj_num='s1', layer='cnn1', norm_type=0)
+for layer in layers:
+    if layer != 'cnn1' and layer != 'cnn2':
+        for t_roi in targets:
+            generic_objective_decoding(data_all=dataset,
+                                       img_feature=image_feature,
+                                       roi=t_roi, sbj_num='s1', layer=layer,
+                                       norm_type='all')
