@@ -15,60 +15,40 @@ import Tools
 # TODO: find the noise increase or decrease through different normalization technics
 # TODO: Noise precision β: means the distribution of noise. separate -> lower, gather -> higher
 
-def generic_objective_decoding(data_all, img_feature, roi, sbj_num: str, layer: str,
-                               norm_type):
+def generic_objective_decoding(data_all, img_feature, R, S: str, L: str, N):
     print('Data Preparing...')
 
-    # Setting ----------------------
-    subject = sbj_num
-    # ------------------------------
-
-    print('Subject: %s, ROI: %s, Iteration: %s' % (subject, roi, 200))
-
+    subject = S
     data = data_all[subject]
 
-    if norm_type == 0:
-        print('No normalizing ==========================')
-        none_all = get_result(data, img_feature, sbj_num, roi, layer, 0)
-
+    if N == 0:
+        none_all = get_result(data, img_feature, S, R, L, 0)
         return none_all
 
-    elif norm_type == 1:
-        print('Z-score normalization using =============')
-        z_all = get_result(data, img_feature, sbj_num, roi, layer, 1)
-
+    elif N == 1:
+        z_all = get_result(data, img_feature, S, R, L, 1)
         return z_all
 
-    elif norm_type == 2:
-        print('Min-Max normalization using =============')
-        min_max_all = get_result(data, img_feature, sbj_num, roi, layer, 2)
-
+    elif N == 2:
+        min_max_all = get_result(data, img_feature, S, R, L, 2)
         return min_max_all
 
-    elif norm_type == 3:
-        print('Decimal scaling normalization using ==============')
-        decimal_all = get_result(data, img_feature, sbj_num, roi, layer, 3)
-
+    elif N == 3:
+        decimal_all = get_result(data, img_feature, S, R, L, 3)
         return decimal_all
 
-    elif norm_type == 'all':
-        print('Z-score normalization using =============')
-        get_result(data, img_feature, sbj_num, roi, layer, 1)
-
-        print('Min-Max normalization using =============')
-        get_result(data, img_feature, sbj_num, roi, layer, 2)
-
-        print('Decimal scaling normalization using ==============')
-        get_result(data, img_feature, sbj_num, roi, layer, 3)
-
-        print('No normalizing ==========================')
-        get_result(data, img_feature, sbj_num, roi, layer, 0)
+    elif N == 'all':
+        get_result(data, img_feature, S, R, L, 1)
+        get_result(data, img_feature, S, R, L, 2)
+        get_result(data, img_feature, S, R, L, 3)
+        get_result(data, img_feature, S, R, L, 0)
     else:
         print('Error input type: norm_type. norm_type should be: [0, 1, 2, 3, all]')
 
 
 # Algorithm part ==============================================================================
 def get_result(S_data, img_feature, S: str, R, L, N: int):
+    tool = Tools.Tool()
     roi_s = {'VC': 'ROI_VC = 1', 'LVC': 'ROI_LVC = 1', 'HVC': 'ROI_HVC = 1',
              'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
              'V4': 'ROI_V4 = 1',
@@ -125,8 +105,8 @@ def get_result(S_data, img_feature, S: str, R, L, N: int):
 
     pred_y, true_y, a_list, w_list, g_list = algorithm_predict_feature(x_train=x_train, y_train=y_train,
                                                                        x_test=x_test, y_test=y_test,
-                                                                       num_voxel=cor_voxel, information=[L],
-                                                                       norm=N)
+                                                                       num_voxel=cor_voxel, info=[S, R, L, N],
+                                                                       N=N)
     decimal_pred = pred_y
     decimal_true = true_y
 
@@ -162,50 +142,61 @@ def get_result(S_data, img_feature, S: str, R, L, N: int):
               'weight': w_list,
               'gain': g_list}
 
-    Tools.save_to_result(S=S, L=L, R=R, N=N, data_dict=output)
+    tool.save_to_result(S=S, L=L, R=R, N=N, data_dict=output)
     return output
 
 
 def algorithm_predict_feature(x_train, y_train, x_test, y_test,
-                              num_voxel, information: list,
-                              norm: (0, 1, 2, 3)):
+                              num_voxel, info: list,
+                              N: int):
     # Training iteration
+    n_unit = y_train.shape[1]
     n_iter = 200
 
     # Normalize brian data (x) --------------------------
-    if norm == 0:
+    if N == 0:
         x_train = x_train
         x_test = x_test
 
-    elif norm == 1:
+    elif N == 1:
         # Z-Score
         norm_mean_x = numpy.mean(x_train, axis=0)
         norm_scale_x = numpy.std(x_train, axis=0, ddof=1)
 
-        x_train = (x_train - norm_mean_x) / norm_scale_x
-        x_test = (x_test - norm_mean_x) / norm_scale_x
+        x_train = numpy.divide(numpy.subtract(x_train, norm_mean_x), norm_scale_x)
+        x_test = numpy.divide(numpy.subtract(x_test, norm_mean_x), norm_scale_x)
 
-    elif norm == 2:
+    elif N == 2:
         # Min-Max
         x_min = numpy.min(x_train)
         x_max = numpy.max(x_train)
 
-        x_train = (x_train - x_min) / (x_max - x_min) * 2 - 1
-        x_test = (x_test - x_min) / (x_max - x_min) * 2 - 1
+        x_train = numpy.subtract(
+            numpy.multiply(
+                numpy.divide(
+                    numpy.subtract(x_train, x_min), numpy.subtract(x_max, x_min)),
+                2),
+            1)
 
-    elif norm == 3:
+        x_test = numpy.subtract(
+            numpy.multiply(
+                numpy.divide(
+                    numpy.subtract(x_test, x_min), numpy.subtract(x_max, x_min)),
+                2),
+            1)
+
+    elif N == 3:
         # Decimal Scaling
         x_train_abs = numpy.abs(x_train)
         x_abs_max = numpy.max(x_train_abs)
 
         power = 1
-
         while x_abs_max > 1:
             x_abs_max /= 10
             power += 1
 
-        x_train = x_train / numpy.power(10, power)
-        x_test = x_test / numpy.power(10, power)
+        x_train = numpy.divide(x_train, numpy.power(10, power))
+        x_test = numpy.divide(x_test, numpy.power(10, power))
     # ---------------------------------------------------
 
     # save predict value
@@ -215,10 +206,10 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
     # =========================================================================================
     # define the neural network architecture (convolutional net) ------------------------------
 
-    for i in range(1000):
-
-        print('Layer: %s, Image Feature: %d ##########################' %
-              (information[0], i))
+    for i in range(n_unit):
+        print('==================================================================')
+        print('Subject: %s, ROI: %s, Layer: %s, Norm tec: %s, Image Feature: %03d' %
+              (info[0], info[1], info[2], info[3], i))
 
         print('Get single y unit.')
         # Image feature normalization - for all data
@@ -254,22 +245,26 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
         # --------------------------------
 
         print('Do normalizing ----------------------')
-        if norm == 0:
+        if N == 0:
             # No normalization
             y_train_unit = y_train_unit
-            y_test_unit = y_test_unit
 
-        elif norm == 1:
+        elif N == 1:
             # z-score
-            y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
+            y_train_unit = numpy.divide(numpy.subtract(y_train_unit, norm_mean_y), norm_scale_y)
 
-        elif norm == 2:
+        elif N == 2:
             # min-max
-            y_train_unit = (y_train_unit - y_min) / (y_max - y_min) * 2 - 1
+            y_train_unit = numpy.subtract(
+                numpy.multiply(
+                    numpy.divide(
+                        numpy.subtract(y_train_unit, y_min), numpy.subtract(y_max, y_min)),
+                    2),
+                1)
 
-        elif norm == 3:
+        elif N == 3:
             # Decimal Scaling
-            y_train_unit = y_train_unit / numpy.power(10, power)
+            y_train_unit = numpy.divide(y_train_unit, numpy.power(10, power))
         # ------------------------------------------------------------
 
         # correlate with y and x------------------------------------------
@@ -309,19 +304,20 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
             y_pred = numpy.zeros(y_test_unit.shape)
 
         # Denormalize ----------------------------------
-        if norm == 1:
-            y_pred = y_pred * norm_scale_y + norm_mean_y
+        if N == 1:
+            y_pred = numpy.add(numpy.multiply(y_pred, norm_scale_y), norm_mean_y)
 
-        elif norm == 2:
-            y_pred = (y_pred + 1) / 2
-            y_pred = y_pred * (y_max - y_min) + y_min
+        elif N == 2:
+            y_pred = numpy.divide(numpy.add(y_pred, 1), 2)
+            y_pred = numpy.add(numpy.multiply(y_pred, numpy.subtract(y_max, y_min)), y_min)
 
-        elif norm == 3:
-            y_pred = y_pred * numpy.power(10, power)
+        elif N == 3:
+            y_pred = numpy.multiply(y_pred, numpy.power(10, power))
         # ----------------------------------------------
 
         y_pred_all.append(y_pred)
         print('Finish ------------------------------')
+        print('==================================================================')
 
         # -----------------------------------------------------------------------------------
         # ===================================================================================
@@ -342,25 +338,7 @@ def get_averaged_feature(pred_y, true_y, labels):
     return pred_y_av, true_y_av, labels_set
 
 
-# Save result ==============================================================
-def error_detected(name: str):
-    content = 'Group |[{ %s }]| already exists, y/n continue? ' % name
-
-    user_input = input(content).lower().strip()
-
-    while True:
-        if user_input == 'y':
-            return True
-        elif user_input == 'n':
-            return False
-
-        else:
-            user_input = input('Unknown input. ' + content).lower().strip()
-
-# --------------------------------------------------------------------------
-
 # Run Program ================================================================================
-
 folder_dir = 'data\\'
 
 subjects = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
@@ -420,10 +398,9 @@ targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
 #   3:     decimal
 #   all:   all of them (no return)
 
-for layer in layers:
-    if layer != 'cnn1' and layer != 'cnn2':
-        for t_roi in targets:
-            generic_objective_decoding(data_all=dataset,
-                                       img_feature=image_feature,
-                                       roi=t_roi, sbj_num='s1', layer=layer,
-                                       norm_type='all')
+for layer in ['cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8']:
+    for t_roi in ['V1', 'V2', 'V3', 'V4']:
+        generic_objective_decoding(data_all=dataset,
+                                   img_feature=image_feature,
+                                   R=t_roi, S='s1', L=layer,
+                                   N='all')
