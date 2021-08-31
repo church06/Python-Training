@@ -150,7 +150,7 @@ def roi_plot(data, x_roi, sbj, roi, num_voxel, pattern: (0, 1)):
     plt.close('all')
 
 
-def subject_plot(data, sbj: ('s1', 's2', 's3', 's4', 's5')):
+def subject_plot(data, sbj: str):
     plt.figure(figsize=(180, 100))
     plt.rcParams['font.size'] = 60
     i = 0

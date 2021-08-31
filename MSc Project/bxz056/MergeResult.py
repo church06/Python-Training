@@ -32,20 +32,20 @@ tool.create_cat('s1')
 data = tool.read_result_data('s1')
 category = tool.read_cat('s1')
 
-roi_s = list(data.keys())
-layer_s = list(data[roi_s[0]].keys())
-norm_s = data[roi_s[0]][layer_s[0]]
-
 mergedResult = {}
 
 cat_pt_av = numpy.array(category['cat_pt_av'])
 cat_im_av = numpy.array(category['cat_im_av'])
 
 r_dict = {}
+roi_s = list(data.keys())
+
 for r in roi_s:
+    layer_s = list(data[r].keys())
     l_dict = {}
 
     for f in layer_s:
+        norm_s = list(data[r][f].keys())
         norm_dict = {}
 
         for n in norm_s:

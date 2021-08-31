@@ -104,7 +104,7 @@ class Tool:
         R_dict = {}
 
         for R in r_list:
-            l_list = list(r_list[R].keys())
+            l_list = list(sbj[R].keys())
             L_dict = {}
 
             for F in l_list:
@@ -140,7 +140,6 @@ class Tool:
         loc = file[sbj_num]
 
         r_list = list(loc.keys())
-        r_list.remove('VC')
 
         r_dict = {}
 
@@ -466,44 +465,43 @@ class Tool:
         print('Save to mergedResult.hdf5 !!!!!!')
         output = h5py.File(self.MResult_path, 'a')
 
-        r_keys = list(data_dict.keys())
-        l_keys = list(data_dict[r_keys[0]].keys())
-        n_keys = list(data_dict[r_keys[0]][l_keys[0]].keys())
-        d_keys = list(data_dict[r_keys[0]][l_keys[0]][n_keys[0]].keys())
-
-        print('ROIs:        ', r_keys)
-        print('Layers:      ', l_keys)
-        print('Norm tec_s:  ', n_keys)
-        print('Data:        ', d_keys)
-
         try:
             loc = output.create_group(sbj_num)
         except ValueError:
             print("Directory ['%s'] already exists, using it directly." % sbj_num)
             loc = output[sbj_num]
 
-        for R, L, N, D in product(r_keys, l_keys, n_keys, d_keys):
+        r_keys = list(data_dict.keys())
+        for R in r_keys:
+            l_keys = list(data_dict[R].keys())
 
-            try:
-                r_file = loc.create_group(R)
-            except ValueError:
-                r_file = loc[R]
+            for L in l_keys:
+                n_keys = list(data_dict[R][L].keys())
 
-            try:
-                l_file = r_file.create_group(L)
-            except ValueError:
-                l_file = r_file[L]
+                for N in n_keys:
+                    d_keys = list(data_dict[R][L][N].keys())
 
-            try:
-                n_file = l_file.create_group(N)
-            except ValueError:
-                n_file = l_file[N]
+                    for D in d_keys:
+                        try:
+                            r_file = loc.create_group(R)
+                        except ValueError:
+                            r_file = loc[R]
 
-            try:
-                n_file.create_dataset(D, data=data_dict[R][L][N][D])
-            except RuntimeError:
-                del n_file[D]
-                n_file.create_dataset(D, data=data_dict[R][L][N][D])
+                        try:
+                            l_file = r_file.create_group(L)
+                        except ValueError:
+                            l_file = r_file[L]
+
+                        try:
+                            n_file = l_file.create_group(N)
+                        except ValueError:
+                            n_file = l_file[N]
+
+                        try:
+                            n_file.create_dataset(D, data=data_dict[R][L][N][D])
+                        except RuntimeError:
+                            del n_file[D]
+                            n_file.create_dataset(D, data=data_dict[R][L][N][D])
 
         output.close()
 

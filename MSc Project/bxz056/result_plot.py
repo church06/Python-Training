@@ -27,7 +27,7 @@ def time_plot(data: dict, layer: str):
 
         plt.subplot(2, 4, i)
         plt.title(roi + ' - ' + layer)
-        plt.ylim(0, 1.5)
+        plt.ylim(0, 3.5)
         plt.bar(labels, times, color='cornflowerblue')
 
         for x, y in zip(labels, times):
@@ -730,54 +730,172 @@ def cor_merged_av_plot(data: dict, roi: str, layer: str):
             plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
 
 
-def cor_av_separate_plot(data: dict, roi: str, layer: str):
-    loc = data[roi.upper()][layer]
+def cor_av_separate_plot(data: dict, roi: list, layer: str):
     d_keys = ['cor_pt_av', 'cor_im_av', 'cor_cat_pt_av', 'cor_cat_im_av']
+
     norm = ['None[ PT ]', 'Z-Score[ PT ]', 'Min-Max[ PT ]', 'Decimal[ PT ]',
             'None[ IM ]', 'Z-Score[ IM ]', 'Min-Max[ IM ]', 'Decimal[ IM ]']
-    target = ['- [Pred - True]', '- [Pred - CAT]']
 
-    plt.suptitle('Correlation for Merged Result')
+    labels = ['- [Pred - True]', '- [Pred - CAT]']
 
-    pt_n_cor_av = loc['none'][d_keys[0]].reshape(50)
-    pt_z_cor_av = loc['z-score'][d_keys[0]].reshape(50)
-    pt_m_cor_av = loc['min-max'][d_keys[0]].reshape(50)
-    pt_d_cor_av = loc['decimal'][d_keys[0]].reshape(50)
+    v1 = {}
+    v2 = {}
+    v3 = {}
+    v4 = {}
+    loc = {}
+    ffa = {}
+    ppa = {}
 
-    pt_n_cor_cat_av = loc['none'][d_keys[2]].reshape(50)
-    pt_z_cor_cat_av = loc['z-score'][d_keys[2]].reshape(50)
-    pt_m_cor_cat_av = loc['min-max'][d_keys[2]].reshape(50)
-    pt_d_cor_cat_av = loc['decimal'][d_keys[2]].reshape(50)
+    plt.figure(figsize=(25, 15))
+    plt.suptitle('Correlation Coefficient - [ %s ]' % layer.upper())
 
-    im_n_cor_av = loc['none'][d_keys[1]].reshape(50)
-    im_z_cor_av = loc['z-score'][d_keys[1]].reshape(50)
-    im_m_cor_av = loc['min-max'][d_keys[1]].reshape(50)
-    im_d_cor_av = loc['decimal'][d_keys[1]].reshape(50)
-    im_n_cor_cat_av = loc['none'][d_keys[3]].reshape(50)
-    im_z_cor_cat_av = loc['z-score'][d_keys[3]].reshape(50)
-    im_m_cor_cat_av = loc['min-max'][d_keys[3]].reshape(50)
-    im_d_cor_cat_av = loc['decimal'][d_keys[3]].reshape(50)
+    for R in roi:
+        target = data[R.upper()][layer]
 
-    all_data = {'%s %s' % (norm[0], target[0]): pt_n_cor_av, '%s %s' % (norm[1], target[0]): pt_z_cor_av,
-                '%s %s' % (norm[2], target[0]): pt_m_cor_av, '%s %s' % (norm[3], target[0]): pt_d_cor_av,
-                '%s %s' % (norm[0], target[1]): pt_n_cor_cat_av, '%s %s' % (norm[1], target[1]): pt_z_cor_cat_av,
-                '%s %s' % (norm[2], target[1]): pt_m_cor_cat_av, '%s %s' % (norm[3], target[1]): pt_d_cor_cat_av,
-                '%s %s' % (norm[4], target[0]): im_n_cor_av, '%s %s' % (norm[5], target[0]): im_z_cor_av,
-                '%s %s' % (norm[6], target[0]): im_m_cor_av, '%s %s' % (norm[7], target[0]): im_d_cor_av,
-                '%s %s' % (norm[4], target[1]): im_n_cor_cat_av, '%s %s' % (norm[5], target[1]): im_z_cor_cat_av,
-                '%s %s' % (norm[6], target[1]): im_m_cor_cat_av, '%s %s' % (norm[7], target[1]): im_d_cor_cat_av,
-                }
+        pt_n_cor_av = target['none'][d_keys[0]].reshape(50)
+        pt_z_cor_av = target['z-score'][d_keys[0]].reshape(50)
+        pt_m_cor_av = target['min-max'][d_keys[0]].reshape(50)
+        pt_d_cor_av = target['decimal'][d_keys[0]].reshape(50)
 
-    plt.suptitle('Correlation Coefficient')
+        pt_n_cor_cat_av = target['none'][d_keys[2]].reshape(50)
+        pt_z_cor_cat_av = target['z-score'][d_keys[2]].reshape(50)
+        pt_m_cor_cat_av = target['min-max'][d_keys[2]].reshape(50)
+        pt_d_cor_cat_av = target['decimal'][d_keys[2]].reshape(50)
+
+        im_n_cor_av = target['none'][d_keys[1]].reshape(50)
+        im_z_cor_av = target['z-score'][d_keys[1]].reshape(50)
+        im_m_cor_av = target['min-max'][d_keys[1]].reshape(50)
+        im_d_cor_av = target['decimal'][d_keys[1]].reshape(50)
+
+        im_n_cor_cat_av = target['none'][d_keys[3]].reshape(50)
+        im_z_cor_cat_av = target['z-score'][d_keys[3]].reshape(50)
+        im_m_cor_cat_av = target['min-max'][d_keys[3]].reshape(50)
+        im_d_cor_cat_av = target['decimal'][d_keys[3]].reshape(50)
+
+        if R == 'v1':
+            v1 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                  }
+
+        elif R == 'v2':
+            v2 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                  }
+        elif R == 'v3':
+            v3 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                  }
+
+        elif R == 'v4':
+            v4 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                  }
+        elif R == 'loc':
+            loc = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                   }
+        elif R == 'ffa':
+            ffa = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                   }
+        elif R == 'ppa':
+            ppa = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
+                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
+                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
+                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
+                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
+                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
+                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
+                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
+                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
+                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
+                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
+                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
+                   }
+
+    all_data = {'v1': v1, 'v2': v2, 'v3': v3, 'v4': v4, 'loc': loc, 'ffa': ffa, 'ppa': ppa}
 
     i = 0
-    for key in all_data:
+    for key in v1:
+        used_data = []
+
+        for R in roi:
+            used_data.append(all_data[R][key])
+
         i += 1
         plt.subplot(4, 4, i)
+
         plt.xlabel('Correlation')
         plt.ylabel('Images - [ALL=50]')
         plt.title(key)
-        plt.hist(all_data[key], alpha=0.3)
+
+        plt.hist(used_data, alpha=0.3)
+        plt.grid(True)
+        plt.legend(roi)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\cor_v1_v4.png')
+    plt.close('all')
 
 
 # =====================================================================================

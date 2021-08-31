@@ -9,7 +9,15 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 def main():
-    scaler_test()
+    threshold_test()
+
+
+def threshold_test():
+    test = numpy.random.rand(1, 10)
+
+    type_list = test > 5
+    print('test: ', test)
+    print('type: ', type_list)
 
 
 def numpy_function_test():
