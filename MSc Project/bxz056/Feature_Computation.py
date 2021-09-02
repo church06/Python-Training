@@ -8,6 +8,7 @@ import slir
 from bdpy.ml import add_bias
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
+
 import Tools
 
 
@@ -107,8 +108,6 @@ def get_result(S_data, img_feature, S: str, R, L, N: int):
                                                                        x_test=x_test, y_test=y_test,
                                                                        num_voxel=cor_voxel, info=[S, R, L, N],
                                                                        N=N)
-    decimal_pred = pred_y
-    decimal_true = true_y
 
     time_end = datetime.datetime.now()
     time_all = time_end - time_start
@@ -117,30 +116,22 @@ def get_result(S_data, img_feature, S: str, R, L, N: int):
 
     time_all_seconds = time_all.seconds
 
-    decimal_pred_pt = decimal_pred[i_pt, :]
-    decimal_pred_im = decimal_pred[i_im, :]
-    decimal_true_pt = decimal_true[i_pt, :]
-    decimal_true_im = decimal_true[i_im, :]
+    pred_pt = pred_y[i_pt, :]
+    pred_im = pred_y[i_im, :]
+    true_pt = true_y[i_pt, :]
+    true_im = true_y[i_im, :]
 
-    decimal_p_pt_av, decimal_t_pt_av, useless = get_averaged_feature(decimal_pred_pt,
-                                                                     decimal_true_pt,
-                                                                     test_label_pt)
-    decimal_p_im_av, decimal_t_im_av, useless = get_averaged_feature(decimal_pred_im,
-                                                                     decimal_true_im,
-                                                                     test_label_im)
+    p_pt_av, t_pt_av, useless = get_averaged_feature(pred_pt, true_pt,
+                                                     test_label_pt)
+    p_im_av, t_im_av, useless = get_averaged_feature(pred_im, true_im,
+                                                     test_label_im)
 
-    output = {'pred_pt': decimal_pred_pt,
-              'pred_im': decimal_pred_im,
-              'true_pt': decimal_true_pt,
-              'true_im': decimal_true_im,
-              'p_pt_av': decimal_p_pt_av,
-              't_pt_av': decimal_t_pt_av,
-              'p_im_av': decimal_p_im_av,
-              't_im_av': decimal_t_im_av,
+    output = {'pred_pt': pred_pt, 'pred_im': pred_im,
+              'true_pt': true_pt, 'true_im': true_im,
+              'p_pt_av': p_pt_av, 't_pt_av': t_pt_av,
+              'p_im_av': p_im_av, 't_im_av': t_im_av,
               'time': time_all_seconds,
-              'alpha': a_list,
-              'weight': w_list,
-              'gain': g_list}
+              'alpha': a_list, 'weight': w_list, 'gain': g_list}
 
     tool.save_to_result(S=S, L=L, R=R, N=N, data_dict=output)
     return output
@@ -163,27 +154,16 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
         norm_mean_x = numpy.mean(x_train, axis=0)
         norm_scale_x = numpy.std(x_train, axis=0, ddof=1)
 
-        x_train = numpy.divide(numpy.subtract(x_train, norm_mean_x), norm_scale_x)
-        x_test = numpy.divide(numpy.subtract(x_test, norm_mean_x), norm_scale_x)
+        x_train = (x_train - norm_mean_x) / norm_scale_x
+        x_test = (x_test - norm_mean_x) / norm_scale_x
 
     elif N == 2:
         # Min-Max
         x_min = numpy.min(x_train)
         x_max = numpy.max(x_train)
 
-        x_train = numpy.subtract(
-            numpy.multiply(
-                numpy.divide(
-                    numpy.subtract(x_train, x_min), numpy.subtract(x_max, x_min)),
-                2),
-            1)
-
-        x_test = numpy.subtract(
-            numpy.multiply(
-                numpy.divide(
-                    numpy.subtract(x_test, x_min), numpy.subtract(x_max, x_min)),
-                2),
-            1)
+        x_train = (x_train - x_min) / (x_max - x_min) * 2 - 1
+        x_test = (x_test - x_min) / (x_max - x_min) * 2 - 1
 
     elif N == 3:
         # Decimal Scaling
@@ -195,8 +175,8 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
             x_abs_max /= 10
             power += 1
 
-        x_train = numpy.divide(x_train, numpy.power(10, power))
-        x_test = numpy.divide(x_test, numpy.power(10, power))
+        x_train = x_train / numpy.power(10, power)
+        x_test = x_test / numpy.power(10, power)
     # ---------------------------------------------------
 
     # save predict value
@@ -207,7 +187,7 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
     # define the neural network architecture (convolutional net) ------------------------------
 
     for i in range(n_unit):
-        print('==================================================================')
+        print('===================================================================')
         print('Subject: %s, ROI: %s, Layer: %s, Norm tec: %s, Image Feature: %03d' %
               (info[0], info[1], info[2], info[3], i))
 
@@ -251,20 +231,15 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
 
         elif N == 1:
             # z-score
-            y_train_unit = numpy.divide(numpy.subtract(y_train_unit, norm_mean_y), norm_scale_y)
+            y_train_unit = (y_train_unit - norm_mean_y) / norm_scale_y
 
         elif N == 2:
             # min-max
-            y_train_unit = numpy.subtract(
-                numpy.multiply(
-                    numpy.divide(
-                        numpy.subtract(y_train_unit, y_min), numpy.subtract(y_max, y_min)),
-                    2),
-                1)
+            y_train_unit = (y_train_unit - y_min) / (y_max - y_min) * 2 - 1
 
         elif N == 3:
             # Decimal Scaling
-            y_train_unit = numpy.divide(y_train_unit, numpy.power(10, power))
+            y_train_unit = y_train_unit / numpy.power(10, power)
         # ------------------------------------------------------------
 
         # correlate with y and x------------------------------------------
@@ -305,19 +280,19 @@ def algorithm_predict_feature(x_train, y_train, x_test, y_test,
 
         # Denormalize ----------------------------------
         if N == 1:
-            y_pred = numpy.add(numpy.multiply(y_pred, norm_scale_y), norm_mean_y)
+            y_pred = y_pred * norm_scale_y + norm_mean_y
 
         elif N == 2:
-            y_pred = numpy.divide(numpy.add(y_pred, 1), 2)
-            y_pred = numpy.add(numpy.multiply(y_pred, numpy.subtract(y_max, y_min)), y_min)
+            y_pred = (y_pred + 1) / 2
+            y_pred = y_pred / (y_max - y_min) + y_min
 
         elif N == 3:
-            y_pred = numpy.multiply(y_pred, numpy.power(10, power))
+            y_pred = y_pred * numpy.power(10, power)
         # ----------------------------------------------
 
-        y_pred_all.append(y_pred)
+        y_pred_all.append(numpy.array(y_pred))
         print('Finish ------------------------------')
-        print('==================================================================')
+        print('===================================================================')
 
         # -----------------------------------------------------------------------------------
         # ===================================================================================
@@ -398,8 +373,8 @@ targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
 #   3:     decimal
 #   all:   all of them (no return)
 
-for layer in ['cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8']:
-    for t_roi in ['V1', 'V2', 'V3', 'V4']:
+for layer in ['cnn2', 'cnn4', 'cnn6', 'cnn8']:
+    for t_roi in ['LOC', 'FFA', 'PPA']:
         generic_objective_decoding(data_all=dataset,
                                    img_feature=image_feature,
                                    R=t_roi, S='s1', L=layer,

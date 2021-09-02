@@ -4,12 +4,27 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random
+import tensorflow
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
 
 def main():
-    threshold_test()
+    tf_computation()
+
+
+def tf_computation():
+    test = numpy.random.randint(1, 10, size=(1, 10))
+    num_1 = 2
+    num_2 = 2
+    tf_test_1 = tensorflow.math.divide(test, num_1)
+    tf_test_2 = tensorflow.math.multiply(test, num_2)
+
+    print(test)
+    print(tf_test_1)
+    print(tf_test_2)
+    print(numpy.array(tf_test_1))
+
 
 
 def threshold_test():
@@ -18,6 +33,7 @@ def threshold_test():
     type_list = test > 5
     print('test: ', test)
     print('type: ', type_list)
+    print('sum: ', numpy.sum(type_list))
 
 
 def numpy_function_test():

@@ -715,7 +715,6 @@ def cor_merged_av_plot(data: dict, roi: str, layer: str):
         plt.title(n_key + ' - ' + '[Pred - True]')
         plt.ylim(0, y_lim)
         plt.bar(x_label_tru, mean_set, color=['cornflowerblue', 'coral'])
-        plt.legend()
 
         for x, y in zip(x_label_tru, mean_set):
             plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
@@ -724,7 +723,6 @@ def cor_merged_av_plot(data: dict, roi: str, layer: str):
         plt.title(n_key + ' - ' + '[Pred - Categories]')
         plt.ylim(0, y_lim)
         plt.bar(x_label_cat, mean_cat_set, color=['cornflowerblue', 'coral'])
-        plt.legend()
 
         for x, y in zip(x_label_cat, mean_cat_set):
             plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')

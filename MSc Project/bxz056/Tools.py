@@ -57,6 +57,7 @@ class Tool:
         self.MResult_path = 'HDF5s\\mergedResult.hdf5'
         self.hdf5_path = 'HDF5s\\'
         self.cat_data_path = 'HDF5s\\cat_data.hdf5'
+        self.final_data_path = 'HDF5s\\correct_rates.hdf5'
 
     def read_subject_1(self):
         print('Read subject data')
@@ -393,6 +394,39 @@ class Tool:
                 out_file.create_dataset(name, data=temp_dict[name])
 
         file.close()
+
+    def save_final_data(self, sbj_num, data: dict):
+        file = h5py.File(self.final_data_path, 'a')
+        try:
+            s_group = file.create_group(sbj_num)
+        except ValueError:
+            s_group = file[sbj_num]
+
+        for R in data.keys():
+            l_list = list(data[R].keys())
+
+            try:
+                r_group = s_group.create_group(R)
+            except ValueError:
+                r_group = s_group[R]
+
+            for L in l_list:
+                d_list = list(data[R][L].keys())
+
+                try:
+                    l_group = r_group.create_group(L)
+                except ValueError:
+                    l_group = r_group[L]
+
+                for D in d_list:
+                    try:
+                        l_group.create_dataset(D, data=data[R][L][D])
+
+                    except RuntimeError:
+                        del l_group[D]
+                        l_group.create_dataset(D, data=data[R][L][D])
+
+        print('Create [ Correct Ratio file ] Finished.')
 
     def save_to_result(self, S: str, R: str, L, N: int, data_dict: dict):
         print('Save to Results.hdf5 !!!!!!')
