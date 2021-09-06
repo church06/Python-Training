@@ -373,8 +373,8 @@ targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
 #   3:     decimal
 #   all:   all of them (no return)
 
-for layer in ['cnn2', 'cnn4', 'cnn6', 'cnn8']:
-    for t_roi in ['LOC', 'FFA', 'PPA']:
+for layer in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']:
+    for t_roi in ['VC']:
         generic_objective_decoding(data_all=dataset,
                                    img_feature=image_feature,
                                    R=t_roi, S='s1', L=layer,

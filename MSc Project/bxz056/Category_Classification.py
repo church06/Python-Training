@@ -11,9 +11,9 @@ def correct_rate(similarity):
     sample = similarity.shape[0]
 
     ratios = []
-    for i in range(sample):
-        pred = similarity[i, :]
-        cr = pred[i]
+    for index in range(sample):
+        pred = similarity[index, :]
+        cr = pred[index]
         num = len(pred) - 1
         ratios.append((num - numpy.sum(pred > cr)) / float(num))
 
@@ -88,7 +88,7 @@ def correlate_correct_rate(sbj_num, t_roi, result: dict, cat_data: dict, img_fea
         layer_dict[layer] = data
 
     roi_dict[t_roi.upper()] = layer_dict
-    tools.save_final_data(sbj_num, roi_dict)
+    tools.save_cr_data(sbj_num, roi_dict)
 
 
 t_sbj = 's1'
@@ -98,6 +98,6 @@ rs = t.read_result_data(t_sbj)
 cat = t.read_cat(t_sbj)
 img = bdpy.BData(os.path.abspath('data\\ImageFeatures.h5'))
 
-for i in ['V1', 'V2', 'V3', 'V4']:
+for i in ['LOC', 'FFA', 'PPA']:
     print('ROI: %s' % i)
     correlate_correct_rate(t_sbj, i, rs, cat, img, t)

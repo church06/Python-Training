@@ -7,31 +7,39 @@ from matplotlib import pyplot as plt
 import Tools
 
 
-def time_plot(data: dict, layer: str):
+def time_plot(data: dict):
     roi_s = list(data.keys())
 
+    plt.figure(figsize=(30, 15))
+    plt.suptitle('Time Cost')
+
     i = 0
-    for roi in roi_s:
-        i += 1
-        loc = data[roi][layer]
-        labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
+    for R in roi_s:
+        for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']:
+            i += 1
+            loc = data[R][L]
+            labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
 
-        plt.suptitle('Time Cost')
+            plt.suptitle('Time Cost')
 
-        n_t = loc['none']['time']
-        z_t = loc['z-score']['time']
-        m_t = loc['min-max']['time']
-        d_t = loc['decimal']['time']
+            n_t = loc['none']['time']
+            z_t = loc['z-score']['time']
+            m_t = loc['min-max']['time']
+            d_t = loc['decimal']['time']
 
-        times = numpy.array([n_t, z_t, m_t, d_t]) / 3600
+            times = numpy.array([n_t, z_t, m_t, d_t]) / 3600
 
-        plt.subplot(2, 4, i)
-        plt.title(roi + ' - ' + layer)
-        plt.ylim(0, 3.5)
-        plt.bar(labels, times, color='cornflowerblue')
+            plt.subplot(7, 5, i)
+            plt.title(R + ' - ' + L)
+            plt.ylim(0, 3.5)
+            plt.bar(labels, times, color='cornflowerblue')
+            plt.grid(True)
 
-        for x, y in zip(labels, times):
-            plt.text(x, y + 0.05, '%.2f' % y, ha='center', va='bottom')
+            for x, y in zip(labels, times):
+                plt.text(x, y + 0.05, '%.2f' % y, ha='center', va='bottom')
+
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\time_cost.png')
 
 
 def dropped_unit_plot(result_data, roi: str, layer: str, mode: str):
@@ -389,7 +397,7 @@ def std_plot(std_s: dict, result_file: dict, roi: str, mode: str):
 
 def mse_plot(data, roi: str, layer: str):
     norm = ['none', 'z-score', 'min-max', 'decimal']
-
+    mse_list = []
     i = 0
     plt.suptitle('MSE - [%s, %s]' % (roi.upper(), layer))
 
@@ -404,17 +412,11 @@ def mse_plot(data, roi: str, layer: str):
         pt_mse = sklearn.mean_squared_error(true_pt, pred_pt)
         im_mse = sklearn.mean_squared_error(true_im, pred_im)
 
-        print('pt_mse: ', pt_mse)
-        print('im_mse: ', im_mse)
+        mse_list.append([pt_mse, im_mse])
 
-        mse_list = numpy.array([pt_mse, im_mse])
-
-        plt.subplot(1, 4, i)
-        plt.title(n)
-        plt.bar(['Seen', 'Imaginary'], mse_list, color=['cornflowerblue', 'coral'])
-
-        for x, y in zip(['Seen', 'Imaginary'], mse_list):
-            plt.text(x, y + 0.05, '%.5f' % y, ha='center', va='bottom')
+    plt.subplot(1, 4, i)
+    plt.title(roi.upper() + ' - ' + layer)
+    plt.bar(['None, -Z-Score', 'Min-Max', 'Decimal'], mse_list)
 
 
 def var_pred_plot(data, roi: str, layer: str):
@@ -729,12 +731,9 @@ def cor_merged_av_plot(data: dict, roi: str, layer: str):
 
 
 def cor_av_separate_plot(data: dict, roi: list, layer: str):
-    d_keys = ['cor_pt_av', 'cor_im_av', 'cor_cat_pt_av', 'cor_cat_im_av']
-
-    norm = ['None[ PT ]', 'Z-Score[ PT ]', 'Min-Max[ PT ]', 'Decimal[ PT ]',
-            'None[ IM ]', 'Z-Score[ IM ]', 'Min-Max[ IM ]', 'Decimal[ IM ]']
-
-    labels = ['- [Pred - True]', '- [Pred - CAT]']
+    d_keys = ['n_cr_pt', 'z_cr_pt', 'm_cr_pt', 'd_cr_pt', 'n_cr_im', 'z_cr_im', 'm_cr_im', 'd_cr_im']
+    labels = ['None - [ PT ]', 'Z-Score - [ PT ]', 'Min-Max - [ PT ]', 'Decimal - [ PT ]',
+              'None - [ IM ]', 'Z-Score - [ IM ]', 'Min-Max - [ IM ]', 'Decimal - [ IM ]']
 
     v1 = {}
     v2 = {}
@@ -750,126 +749,43 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
     for R in roi:
         target = data[R.upper()][layer]
 
-        pt_n_cor_av = target['none'][d_keys[0]].reshape(50)
-        pt_z_cor_av = target['z-score'][d_keys[0]].reshape(50)
-        pt_m_cor_av = target['min-max'][d_keys[0]].reshape(50)
-        pt_d_cor_av = target['decimal'][d_keys[0]].reshape(50)
+        n_pt = target[d_keys[0]].reshape(50)
+        z_pt = target[d_keys[1]].reshape(50)
+        m_pt = target[d_keys[2]].reshape(50)
+        d_pt = target[d_keys[3]].reshape(50)
 
-        pt_n_cor_cat_av = target['none'][d_keys[2]].reshape(50)
-        pt_z_cor_cat_av = target['z-score'][d_keys[2]].reshape(50)
-        pt_m_cor_cat_av = target['min-max'][d_keys[2]].reshape(50)
-        pt_d_cor_cat_av = target['decimal'][d_keys[2]].reshape(50)
-
-        im_n_cor_av = target['none'][d_keys[1]].reshape(50)
-        im_z_cor_av = target['z-score'][d_keys[1]].reshape(50)
-        im_m_cor_av = target['min-max'][d_keys[1]].reshape(50)
-        im_d_cor_av = target['decimal'][d_keys[1]].reshape(50)
-
-        im_n_cor_cat_av = target['none'][d_keys[3]].reshape(50)
-        im_z_cor_cat_av = target['z-score'][d_keys[3]].reshape(50)
-        im_m_cor_cat_av = target['min-max'][d_keys[3]].reshape(50)
-        im_d_cor_cat_av = target['decimal'][d_keys[3]].reshape(50)
+        n_im = target[d_keys[4]].reshape(50)
+        z_im = target[d_keys[5]].reshape(50)
+        m_im = target[d_keys[6]].reshape(50)
+        d_im = target[d_keys[7]].reshape(50)
 
         if R == 'v1':
-            v1 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                  }
+            v1 = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                  labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
 
         elif R == 'v2':
-            v2 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                  }
+            v2 = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                  labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
+
         elif R == 'v3':
-            v3 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                  }
+            v3 = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                  labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
 
         elif R == 'v4':
-            v4 = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                  '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                  '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                  '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                  '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                  '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                  '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                  '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                  '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                  '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                  '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                  '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                  }
+            v4 = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                  labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
+
         elif R == 'loc':
-            loc = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                   }
+            loc = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                   labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
+
         elif R == 'ffa':
-            ffa = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                   }
+            ffa = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                   labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
+
         elif R == 'ppa':
-            ppa = {'%s %s' % (norm[0], labels[0]): pt_n_cor_av, '%s %s' % (norm[1], labels[0]): pt_z_cor_av,
-                   '%s %s' % (norm[2], labels[0]): pt_m_cor_av, '%s %s' % (norm[3], labels[0]): pt_d_cor_av,
-                   '%s %s' % (norm[0], labels[1]): pt_n_cor_cat_av,
-                   '%s %s' % (norm[1], labels[1]): pt_z_cor_cat_av,
-                   '%s %s' % (norm[2], labels[1]): pt_m_cor_cat_av,
-                   '%s %s' % (norm[3], labels[1]): pt_d_cor_cat_av,
-                   '%s %s' % (norm[4], labels[0]): im_n_cor_av, '%s %s' % (norm[5], labels[0]): im_z_cor_av,
-                   '%s %s' % (norm[6], labels[0]): im_m_cor_av, '%s %s' % (norm[7], labels[0]): im_d_cor_av,
-                   '%s %s' % (norm[4], labels[1]): im_n_cor_cat_av,
-                   '%s %s' % (norm[5], labels[1]): im_z_cor_cat_av,
-                   '%s %s' % (norm[6], labels[1]): im_m_cor_cat_av,
-                   '%s %s' % (norm[7], labels[1]): im_d_cor_cat_av,
-                   }
+            ppa = {labels[0]: n_pt, labels[1]: z_pt, labels[2]: m_pt, labels[3]: d_pt,
+                   labels[4]: n_im, labels[5]: z_im, labels[6]: m_im, labels[7]: d_im}
 
     all_data = {'v1': v1, 'v2': v2, 'v3': v3, 'v4': v4, 'loc': loc, 'ffa': ffa, 'ppa': ppa}
 
@@ -881,18 +797,55 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
             used_data.append(all_data[R][key])
 
         i += 1
-        plt.subplot(4, 4, i)
+        plt.subplot(2, 4, i)
 
         plt.xlabel('Correlation')
         plt.ylabel('Images - [ALL=50]')
         plt.title(key)
 
-        plt.hist(used_data, alpha=0.3)
+        plt.hist(used_data, alpha=0.5)
         plt.grid(True)
         plt.legend(roi)
 
     plt.tight_layout(rect=[0, 0, 1, 0.99])
-    plt.savefig('plots\\results\\cor_v1_v4.png')
+    plt.savefig('plots\\results\\cor_%s_all.png' % layer)
+    plt.close('all')
+
+
+def cor_cat_plot(data: dict, mode: str):
+    plt.figure(figsize=(30, 15))
+    plt.suptitle('Correlation Coefficient [Pred - CAT]')
+
+    i = 0
+    for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']:
+        for R in list(data.keys()):
+            i += 1
+            cr_list = []
+
+            if mode == 'pt':
+                n_cr = data[R][L]['n_cr_pt_av']
+                z_cr = data[R][L]['z_cr_pt_av']
+                m_cr = data[R][L]['m_cr_pt_av']
+                d_cr = data[R][L]['d_cr_pt_av']
+
+                cr_list = [n_cr, z_cr, m_cr, d_cr]
+
+            elif mode == 'im':
+                n_cr = data[R][L]['n_cr_im_av']
+                z_cr = data[R][L]['z_cr_im_av']
+                m_cr = data[R][L]['m_cr_im_av']
+                d_cr = data[R][L]['d_cr_im_av']
+
+                cr_list = [n_cr, z_cr, m_cr, d_cr]
+
+            plt.subplot(5, 7, i)
+            plt.title(L + ' - ' + R + ' [ %s ]' % mode.upper())
+            plt.bar(['none', 'z-score', 'min-max', 'decimal'], cr_list)
+            plt.ylim(0, 1.1)
+            plt.grid(True)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\cor_cat_%s.png' % mode)
     plt.close('all')
 
 
@@ -901,5 +854,6 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
 tool = Tools.Tool()
 
 result = tool.read_result_data('s1')
-merged_result = tool.read_merged_data('s1')
+cr_rate = tool.read_cr_rate('s1')
+merged_data = tool.read_merged_data('s1')
 xy_train_std = tool.read_xy_std_data('s1')

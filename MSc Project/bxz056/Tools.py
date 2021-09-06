@@ -57,7 +57,7 @@ class Tool:
         self.MResult_path = 'HDF5s\\mergedResult.hdf5'
         self.hdf5_path = 'HDF5s\\'
         self.cat_data_path = 'HDF5s\\cat_data.hdf5'
-        self.final_data_path = 'HDF5s\\correct_rates.hdf5'
+        self.cr_rate_path = 'HDF5s\\CR_Rates.hdf5'
 
     def read_subject_1(self):
         print('Read subject data')
@@ -180,6 +180,31 @@ class Tool:
 
         file.close()
         return output
+
+    def read_cr_rate(self, sbj_num: str):
+        print('Getting [ CR Rate ] File...')
+        file = h5py.File(self.cr_rate_path, 'r')
+
+        loc = file[sbj_num]
+
+        r_keys = list(loc.keys())
+
+        r_dict = {}
+        for R in r_keys:
+            l_keys = list(loc[R].keys())
+
+            l_dict = {}
+            for L in l_keys:
+                d_keys = list(loc[R][L].keys())
+
+                d_dict = {}
+                for D in d_keys:
+                    d_dict[D] = numpy.array(loc[R][L][D])
+
+                l_dict[L] = d_dict
+            r_dict[R] = l_dict
+
+        return r_dict
 
     def create_xy_std_data(self, sbj_num: str, roi: str, layer: str):
         print("Creating ['%s'] test data by normalization: [none, z-score, min-max, decimal]" % layer)
@@ -395,8 +420,8 @@ class Tool:
 
         file.close()
 
-    def save_final_data(self, sbj_num, data: dict):
-        file = h5py.File(self.final_data_path, 'a')
+    def save_cr_data(self, sbj_num, data: dict):
+        file = h5py.File(self.cr_rate_path, 'a')
         try:
             s_group = file.create_group(sbj_num)
         except ValueError:
