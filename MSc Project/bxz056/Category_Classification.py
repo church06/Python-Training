@@ -21,9 +21,6 @@ def correct_rate(similarity):
 
 
 def correlate_correct_rate(sbj_num, t_roi, result: dict, cat_data: dict, img_feature: bdpy.BData, tools: Tools):
-    cat_av_pt = cat_data['cat_pt_av']
-    cat_av_im = cat_data['cat_im_av']
-
     layer_s = list(result[t_roi].keys())
     pred_pt = result[t_roi]
     pred_im = result[t_roi]
@@ -36,11 +33,15 @@ def correlate_correct_rate(sbj_num, t_roi, result: dict, cat_data: dict, img_fea
     roi_dict = {}
     layer_dict = {}
 
-    for layer, cat_pt, cat_im, p_pt, p_im in zip(layer_s, cat_av_pt, cat_av_im, pred_pt, pred_im):
+    for layer, p_pt, p_im in zip(layer_s, pred_pt, pred_im):
+        cat_pt = cat_data[layer]['cat_pt_av']
+        cat_im = cat_data[layer]['cat_im_av']
+
         feat_other = img_feature.select(layer)[ind_cat_other, :]
 
         print('Layer: %s' % layer)
-        feat_ca = feat_other
+        n_unit = cat_pt.shape[1]
+        feat_ca = feat_other[:, :n_unit]
 
         feat_va_pt = numpy.vstack([cat_pt, feat_ca])
         feat_va_im = numpy.vstack([cat_im, feat_ca])
@@ -98,6 +99,6 @@ rs = t.read_result_data(t_sbj)
 cat = t.read_cat(t_sbj)
 img = bdpy.BData(os.path.abspath('data\\ImageFeatures.h5'))
 
-for i in ['LOC', 'FFA', 'PPA']:
+for i in ['V1', 'V2', 'V3', 'V4', 'LOC', 'FFA', 'PPA']:
     print('ROI: %s' % i)
     correlate_correct_rate(t_sbj, i, rs, cat, img, t)

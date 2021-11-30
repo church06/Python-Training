@@ -7,10 +7,29 @@ import numpy.random
 import tensorflow
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
+import Tools
 
 
 def main():
-    tf_computation()
+    nan_test()
+
+
+def nan_test():
+    tool = Tools.Tool()
+    data = tool.read_merged_data('s1')
+
+    for R in ['v1', 'v2', 'v3', 'v4', 'loc', 'ffa', 'ppa']:
+        X = data[R.upper()]['hmax2']['min-max']['cor_pt_av']
+
+        print(R + ' ----------------------------')
+        print(np.linalg.matrix_rank(X))
+        print(X)
+
+
+def str_test():
+    test = 'Af;oinsdf'
+
+    print(test[0].lower())
 
 
 def tf_computation():
@@ -24,7 +43,6 @@ def tf_computation():
     print(tf_test_1)
     print(tf_test_2)
     print(numpy.array(tf_test_1))
-
 
 
 def threshold_test():

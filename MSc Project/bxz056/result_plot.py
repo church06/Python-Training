@@ -4,6 +4,7 @@ import sklearn.metrics as sklearn
 from bdpy.preproc import select_top
 from bdpy.stats import corrcoef
 from matplotlib import pyplot as plt
+
 import Tools
 
 
@@ -15,10 +16,10 @@ def time_plot(data: dict):
 
     i = 0
     for R in roi_s:
-        for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']:
+        for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8', 'hmax1', 'hmax2', 'hmax3', 'gist', 'sift']:
             i += 1
             loc = data[R][L]
-            labels = ['None', 'Z-SCore', 'Min-Max', 'Decimal Scaling']
+            labels = ['N', 'Z', 'M', 'D']
 
             plt.suptitle('Time Cost')
 
@@ -29,9 +30,9 @@ def time_plot(data: dict):
 
             times = numpy.array([n_t, z_t, m_t, d_t]) / 3600
 
-            plt.subplot(7, 5, i)
+            plt.subplot(7, 10, i)
             plt.title(R + ' - ' + L)
-            plt.ylim(0, 3.5)
+            plt.ylim(0, 1.5)
             plt.bar(labels, times, color='cornflowerblue')
             plt.grid(True)
 
@@ -40,134 +41,185 @@ def time_plot(data: dict):
 
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.savefig('plots\\results\\time_cost.png')
+    plt.close('all')
 
 
-def dropped_unit_plot(result_data, roi: str, layer: str, mode: str):
-    n_d_list = numpy.array([])
-    z_d_list = numpy.array([])
-    m_d_list = numpy.array([])
-    d_d_list = numpy.array([])
+def dropped_unit_plot(result_data, roi: str, mode: str):
+    cnn = ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']
+    hmax = ['hmax1', 'hmax2', 'hmax3']
+    others = ['gist', 'sift']
 
     roi_c = roi.upper()
+    i = 0
+    plt.suptitle('Dropped Units - [%s]' % roi)
 
-    for i in range(0, 200):
-        n_d_list = numpy.append(n_d_list, len(result_data[roi_c][layer]['none']['alpha'][str(i)]))
-        z_d_list = numpy.append(z_d_list, len(result_data[roi_c][layer]['z-score']['alpha'][str(i)]))
-        m_d_list = numpy.append(m_d_list, len(result_data[roi_c][layer]['min-max']['alpha'][str(i)]))
-        d_d_list = numpy.append(d_d_list, len(result_data[roi_c][layer]['decimal']['alpha'][str(i)]))
+    if mode == 'cnn':
+        for C in cnn:
+            n_d_list = numpy.array([])
+            z_d_list = numpy.array([])
+            m_d_list = numpy.array([])
+            d_d_list = numpy.array([])
+            i += 1
 
-    if mode == 'gather':
-        plt.title('Dropped Units')
+            for index in range(0, 200):
+                n_d_list = numpy.append(n_d_list, len(result_data[roi_c][C]['none']['alpha'][str(index)]))
+                z_d_list = numpy.append(z_d_list, len(result_data[roi_c][C]['z-score']['alpha'][str(index)]))
+                m_d_list = numpy.append(m_d_list, len(result_data[roi_c][C]['min-max']['alpha'][str(index)]))
+                d_d_list = numpy.append(d_d_list, len(result_data[roi_c][C]['decimal']['alpha'][str(index)]))
 
-        plt.plot(n_d_list, label='No normalization', color='orangered')
-        plt.legend()
+            plt.subplot(3, 2, i)
+            plt.title(C)
+            plt.plot(n_d_list, label='No normalization', color='orangered')
 
-        plt.plot(d_d_list, label='Decimal Scaling', color='orange')
-        plt.legend()
+            plt.subplot(3, 2, i)
+            plt.title(C)
+            plt.plot(d_d_list, label='Decimal Scaling', color='orange')
 
-        plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
-        plt.legend()
+            plt.subplot(3, 2, i)
+            plt.title(C)
+            plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
 
-        plt.plot(z_d_list, label='Z-Score', color='cornflowerblue')
-        plt.legend()
+            plt.subplot(3, 2, i)
+            plt.title(C)
+            plt.plot(z_d_list, label='Z-Score', color='cornflowerblue')
+            plt.legend(['N', 'Z', 'M', 'D'])
 
-    elif mode == 'separate':
-        plt.suptitle('Dropped Units')
+    elif mode == 'hmax':
+        for H in hmax:
+            n_d_list = numpy.array([])
+            z_d_list = numpy.array([])
+            m_d_list = numpy.array([])
+            d_d_list = numpy.array([])
+            i += 1
 
-        plt.subplot(411)
-        plt.title('No normalization')
-        plt.plot(n_d_list, label='No normalization', color='orangered')
+            for index in range(0, 200):
+                n_d_list = numpy.append(n_d_list, len(result_data[roi_c][H]['none']['alpha'][str(index)]))
+                z_d_list = numpy.append(z_d_list, len(result_data[roi_c][H]['z-score']['alpha'][str(index)]))
+                m_d_list = numpy.append(m_d_list, len(result_data[roi_c][H]['min-max']['alpha'][str(index)]))
+                d_d_list = numpy.append(d_d_list, len(result_data[roi_c][H]['decimal']['alpha'][str(index)]))
 
-        for x, y in zip(range(len(n_d_list)), n_d_list):
-            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+            plt.subplot(1, 3, i)
+            plt.title(H)
+            plt.plot(n_d_list, label='No normalization', color='orangered')
 
-        plt.subplot(412)
-        plt.title('Z-Score')
-        plt.plot(z_d_list, label='Z-Score', color='orange')
+            plt.subplot(1, 3, i)
+            plt.title(H)
+            plt.plot(d_d_list, label='Decimal Scaling', color='orange')
 
-        for x, y in zip(range(len(z_d_list)), z_d_list):
-            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+            plt.subplot(1, 3, i)
+            plt.title(H)
+            plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
 
-        plt.subplot(413)
-        plt.title('Min-Max')
-        plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
-        plt.legend()
+            plt.subplot(1, 3, i)
+            plt.title(H)
+            plt.plot(z_d_list, label='Z-Score', color='cornflowerblue')
+            plt.legend(['N', 'Z', 'M', 'D'])
 
-        for x, y in zip(range(len(m_d_list)), m_d_list):
-            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+    elif mode == 'others':
+        for Ot in others:
+            n_d_list = numpy.array([])
+            z_d_list = numpy.array([])
+            m_d_list = numpy.array([])
+            d_d_list = numpy.array([])
+            i += 1
 
-        plt.subplot(414)
-        plt.title('Decimal Scaling')
-        plt.plot(d_d_list, label='Min-Max', color='cornflowerblue')
-        plt.legend()
+            for index in range(0, 200):
+                n_d_list = numpy.append(n_d_list, len(result_data[roi_c][Ot]['none']['alpha'][str(index)]))
+                z_d_list = numpy.append(z_d_list, len(result_data[roi_c][Ot]['z-score']['alpha'][str(index)]))
+                m_d_list = numpy.append(m_d_list, len(result_data[roi_c][Ot]['min-max']['alpha'][str(index)]))
+                d_d_list = numpy.append(d_d_list, len(result_data[roi_c][Ot]['decimal']['alpha'][str(index)]))
 
-        for x, y in zip(range(len(d_d_list)), d_d_list):
-            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+            plt.subplot(1, 2, i)
+            plt.title(Ot)
+            plt.plot(n_d_list, label='No normalization', color='orangered')
+
+            plt.subplot(1, 2, i)
+            plt.title(Ot)
+            plt.plot(d_d_list, label='Decimal Scaling', color='orange')
+
+            plt.subplot(1, 2, i)
+            plt.title(Ot)
+            plt.plot(m_d_list, label='Min-Max', color='lightskyblue')
+
+            plt.subplot(1, 2, i)
+            plt.title(Ot)
+            plt.plot(z_d_list, label='Z-Score', color='cornflowerblue')
+            plt.legend(['N', 'Z', 'M', 'D'])
+    else:
+        print('Unknown mode.')
+        return None
 
 
-def min_max_value_plot(data: dict, roi: str):
+def min_max_value_plot(data: dict, roi: str, mode: str):
     target = data[roi.upper()]
+
+    cnn = ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']
+    hmax = ['hmax1', 'hmax2', 'hmax3']
+    others = ['gist', 'sift']
+
+    if mode == 'cnn':
+        min_max_draw(target, cnn, 3, 6, roi)
+
+    elif mode == 'hmax':
+        min_max_draw(target, hmax, 3, 3, roi)
+
+    elif mode == 'others':
+        min_max_draw(target, others, 2, 3, roi)
+
+
+def min_max_draw(data: dict, layers: list, ax_x: int, ax_y: int, roi: str):
     labels = ['None', 'Z-Score', 'Min-Max', 'Decimal']
+    i = 0
 
-    t_min = numpy.array([])
-    t_max = numpy.array([])
+    for L in layers:
+        t_min, t_max = [], []
+        y_min, y_max = [], []
 
-    y_min = numpy.array([])
-    y_max = numpy.array([])
+        i += 1
 
-    for t in ['n_train', 'z_train', 'm_train', 'd_train']:
-        MIN = min(target[t][0, :])
-        MAX = max(target[t][0, :])
-        t_min = numpy.append(t_min, MIN)
-        t_max = numpy.append(t_max, MAX)
+        for T in ['n_train', 'z_train', 'm_train', 'd_train']:
+            MIN = min(data[L][T][0, :])
+            MAX = max(data[L][T][0, :])
+            t_min = numpy.append(t_min, MIN)
+            t_max = numpy.append(t_max, MAX)
 
-    for F in ['n_y', 'z_y', 'm_y', 'd_y']:
-        MIN = min(target[F])
-        MAX = max(target[F])
+        for F in ['n_y', 'z_y', 'm_y', 'd_y']:
+            MIN = min(data['cnn1'][F])
+            MAX = max(data['cnn1'][F])
 
-        y_min = numpy.append(y_min, MIN)
-        y_max = numpy.append(y_max, MAX)
+            y_min = numpy.append(y_min, MIN)
+            y_max = numpy.append(y_max, MAX)
 
-    bias_max = numpy.abs(t_max - y_max)
-    bias_min = -numpy.abs(t_min - y_min)
+        bias_max = numpy.abs(t_max - y_max)
+        bias_min = -numpy.abs(t_min - y_min)
 
-    plt.suptitle('Min & Max Value')
+        plt.suptitle('Min & Max Value - %s' % roi)
 
-    plt.subplot(131)
-    plt.title('Training data')
-    plt.ylim(-10, 10)
-    plt.bar(labels, t_max, color='cornflowerblue')
-    plt.bar(labels, t_min, color='coral')
+        plt.subplot(ax_x, ax_y, i)
+        plt.title('Training data - %s' % L)
+        plt.ylim(-10, 10)
+        plt.bar(labels, t_max, color='cornflowerblue')
+        plt.bar(labels, t_min, color='coral')
 
-    for x, y in zip(labels, t_max):
-        plt.text(x, 0.1, '%.3f' % y, ha='center', va='bottom')
+        i += 1
 
-    for x, y in zip(labels, t_min):
-        plt.text(x, -0.4, '%.3f' % y, ha='center', va='bottom')
+        plt.subplot(ax_x, ax_y, i)
+        plt.title('True data - %s' % L)
+        plt.ylim(-10, 10)
+        plt.bar(labels, y_max, color='cornflowerblue')
+        plt.bar(labels, y_min, color='coral')
 
-    plt.subplot(132)
-    plt.title('True data')
-    plt.ylim(-10, 10)
-    plt.bar(labels, y_max, color='cornflowerblue')
-    plt.bar(labels, y_min, color='coral')
+        i += 1
 
-    for x, y in zip(labels, y_max):
-        plt.text(x, 0.1, '%.5f' % y, ha='center', va='bottom')
+        plt.subplot(ax_x, ax_y, i)
+        plt.title('Bias between Max & Min - %s' % L)
+        plt.ylim(-10, 10)
+        plt.bar(labels, bias_max, color='cornflowerblue')
+        plt.bar(labels, bias_min, color='coral')
 
-    for x, y in zip(labels, y_min):
-        plt.text(x, -0.4, '%.5f' % y, ha='center', va='bottom')
-
-    plt.subplot(133)
-    plt.title('Bias between Max & Min')
-    plt.ylim(-10, 10)
-    plt.bar(labels, bias_max, color='cornflowerblue')
-    plt.bar(labels, bias_min, color='coral')
-
-    for x, y in zip(labels, bias_max):
-        plt.text(x, 0.1, '%.5f' % y, ha='center', va='bottom')
-
-    for x, y in zip(labels, bias_min):
-        plt.text(x, -0.4, '%.5f' % y, ha='center', va='bottom')
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\min_max_%s_%s.png' % (roi, layers[0][:-1]))
+    plt.close('all')
 
 
 def norm_pred_contrast(title: str, none, z, min_max, decimal):
@@ -258,222 +310,179 @@ def outlier_plot(data: dict, roi: str, mode: str):
     colors = ['coral', 'cornflowerblue', 'violet', 'lightgreen']
 
     if mode == 'bar':
-        o_list = numpy.array([])
+        plt.figure(figsize=(20, 11))
+        plt.suptitle('Outliers - [%s]' % roi)
+        index = 0
 
-        for LAB in labels:
-            tr = loc[LAB]
+        for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8', 'hmax1', 'hmax2', 'hmax3', 'gist', 'sift']:
+            index += 1
+            o_list = numpy.array([])
+            for LAB in labels:
+                tr = loc[L][LAB]
 
-            q1 = numpy.percentile(tr, 25)
-            q3 = numpy.percentile(tr, 75)
-            iqr = q3 - q1
-            boundary = iqr * 1.5
+                q1 = numpy.percentile(tr, 25)
+                q3 = numpy.percentile(tr, 75)
+                iqr = q3 - q1
+                boundary = iqr * 1.5
 
-            outlier = 0
-            for i in range(0, tr.shape[1]):
-                num = tr[0, i]
-                if num < (q1 - boundary) or num > (q3 + boundary):
-                    outlier += 1
+                outlier = 0
+                for i in range(0, tr.shape[1]):
+                    num = tr[0, i]
+                    if num < (q1 - boundary) or num > (q3 + boundary):
+                        outlier += 1
 
-            o_list = numpy.append(o_list, outlier)
+                o_list = numpy.append(o_list, outlier)
 
-        plt.title('Number of Outliers')
-        plt.bar(x_labels, o_list, color='cornflowerblue')
+            plt.subplot(2, 5, index)
+            plt.title(L)
+            plt.bar(x_labels, o_list, color='cornflowerblue')
 
-        for x, y in zip(x_labels, o_list):
-            plt.text(x, y + 0.05, y, ha='center', va='bottom')
+            for x, y in zip(x_labels, o_list):
+                plt.text(x, y + 0.05, y, ha='center', va='bottom')
+
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        plt.savefig('plots\\results\\outliers_%s.png' % roi)
+        plt.close('all')
 
     elif mode == 'scatter':
-        i = 0
-        for LAB in labels:
-            data = loc[LAB]
+        index = 0
 
-            plt.title('Data distribution')
-            plt.scatter(data[0, :], data[0, :], color=colors[i], alpha=0.4, label=LAB)
-            plt.legend()
+        plt.figure(figsize=(20, 60))
+        plt.suptitle('Data Distribution')
 
-            i += 1
+        for R in ['v1', 'v2', 'v3', 'v4', 'loc', 'ffa', 'ppa']:
+            file = data[R.upper()]
+
+            for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8', 'hmax1', 'hmax2', 'hmax3', 'gist', 'sift']:
+                index += 1
+                i = 0
+
+                for LAB in labels:
+                    target = file[L][LAB]
+
+                    plt.subplot(14, 5, index)
+                    plt.title('%s - [%s]' % (R, L))
+                    plt.ylim(-30, 30)
+                    plt.xlim(-30, 30)
+                    plt.scatter(target[0, :], target[0, :], color=colors[i], alpha=0.4, label=LAB)
+                    plt.legend()
+
+                    i += 1
+
+        plt.tight_layout(rect=[0, 0, 1, 0.99])
+        plt.savefig('plots\\results\\distribution.png')
+        plt.close('all')
+
     else:
         print('Unknown mode.')
 
 
-def std_plot(std_s: dict, result_file: dict, roi: str, mode: str):
-    loc = std_s[roi.upper()]
-    loc_r = result_file[roi.upper()]['cnn1']
-
-    labels = ['none', 'z-score', 'min-max', 'decimal']
-
-    x_test_keys = ['n_test_std', 'z_test_std', 'm_test_std', 'd_test_std']
-    y_keys = ['n_y_std', 'z_y_std', 'm_y_std', 'd_y_std']
-    x_train_keys = ['n_train_std', 'z_train_std', 'm_train_std', 'd_train_std']
-
-    # Test & Pred ----------------------------------------------------------
-    x_test_std = numpy.array([])
-    for k in x_test_keys:
-        x_test_std = numpy.append(x_test_std, loc[k])
-
-    pred_std = numpy.array([])
-    for la in labels:
-        pred_data = numpy.append(loc_r[la]['pred_pt'], loc_r[la]['pred_im'])
-        pred_std = numpy.append(pred_std, numpy.mean(pred_data))
-    # ----------------------------------------------------------------------
-
-    # X & Y --------------------------------------------
-    x_train_std = numpy.array([])
-    for tr in x_train_keys:
-        x_train_std = numpy.append(x_train_std, loc[tr])
-
-    y_std = numpy.array([])
-    for k in y_keys:
-        y_std = numpy.append(y_std, loc[k])
-    # --------------------------------------------------
-
-    plt.suptitle('STD - [%s]' % roi.upper())
-
-    if mode == 'all':
-        # Plot 1 ------------------------------------------------------
-        plt.subplot(221)
-        plt.title('fMRI Data - Test')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, x_test_std, color='cornflowerblue')
-
-        for x, y in zip(labels, x_test_std):
-            plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-        # Plot 2 ------------------------------------------------------
-        plt.subplot(222)
-        plt.title('Prediction')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, pred_std, color='coral')
-
-        for x, y in zip(labels, pred_std):
-            plt.text(x, -0.15, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-        # Plot 3 ------------------------------------------------------
-        plt.subplot(223)
-        plt.title('fMRI data - Training')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, x_train_std, color='cornflowerblue')
-
-        for x, y in zip(labels, x_train_std):
-            plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-        # Plot 4 ------------------------------------------------------
-        plt.subplot(224)
-        plt.title('Image Feature')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, y_std, color='coral')
-
-        for x, y in zip(labels, y_std):
-            plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-    elif mode == 'bias':
-        p_bias = x_test_std - pred_std
-        t_bias = x_train_std - y_std
-
-        # Plot 1 ------------------------------------------------------
-        plt.subplot(121)
-        plt.title('Test -> Pred')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, p_bias, color='cornflowerblue')
-
-        for x, y in zip(labels, p_bias):
-            plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-        # Plot 2 ------------------------------------------------------
-        plt.subplot(122)
-        plt.title('Train -> Test')
-        plt.ylim(-5.5, 5.5)
-        plt.bar(labels, t_bias, color='coral')
-
-        for x, y in zip(labels, t_bias):
-            plt.text(x, -0.15, '%.5f' % y, ha='center', va='bottom')
-        # -------------------------------------------------------------
-
-
-def mse_plot(data, roi: str, layer: str):
-    norm = ['none', 'z-score', 'min-max', 'decimal']
-    mse_list = []
+def std_plot(std_s: dict):
     i = 0
-    plt.suptitle('MSE - [%s, %s]' % (roi.upper(), layer))
+    plt.figure(figsize=(40, 100))
+    for R in ['v1', 'v2', 'v3', 'v4', 'loc', 'ffa', 'ppa']:
+        for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8', 'hmax1', 'hmax2', 'hmax3', 'gist', 'sift']:
+            i += 1
+            loc = std_s[R.upper()][L]
 
-    for n in norm:
-        i += 1
-        pred_pt = data[roi.upper()][layer][n]['pred_pt']
-        true_pt = data[roi.upper()][layer][n]['true_pt']
+            labels = ['none', 'z-score', 'min-max', 'decimal']
 
-        pred_im = data[roi.upper()][layer][n]['pred_im']
-        true_im = data[roi.upper()][layer][n]['true_im']
+            y_keys = ['n_y_std', 'z_y_std', 'm_y_std', 'd_y_std']
+            x_train_keys = ['n_train_std', 'z_train_std', 'm_train_std', 'd_train_std']
 
-        pt_mse = sklearn.mean_squared_error(true_pt, pred_pt)
-        im_mse = sklearn.mean_squared_error(true_im, pred_im)
+            # X & Y --------------------------------------------
+            x_train_std = numpy.array([])
+            for tr in x_train_keys:
+                x_train_std = numpy.append(x_train_std, loc[tr])
 
-        mse_list.append([pt_mse, im_mse])
+            y_std = numpy.array([])
+            for k in y_keys:
+                y_std = numpy.append(y_std, loc[k])
+            # --------------------------------------------------
 
-    plt.subplot(1, 4, i)
-    plt.title(roi.upper() + ' - ' + layer)
-    plt.bar(['None, -Z-Score', 'Min-Max', 'Decimal'], mse_list)
+            plt.suptitle('Standard Deviation')
+
+            # Plot 1 --------------------------------------------------
+            plt.subplot(35, 4, i)
+            plt.title('fMRI data - [%s %s]' % (R, L))
+            plt.ylim(-5.5, 5.5)
+            plt.bar(labels, x_train_std, color='cornflowerblue')
+
+            for x, y in zip(labels, x_train_std):
+                plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
+            # ---------------------------------------------------------
+
+            i += 1
+
+            # Plot 2 ------------------------------------------------------
+            plt.subplot(35, 4, i)
+            plt.title('Image Feature - [%s %s]' % (R, L))
+            plt.ylim(-5.5, 5.5)
+            plt.bar(labels, y_std, color='coral')
+
+            for x, y in zip(labels, y_std):
+                plt.text(x, 0.05, '%.5f' % y, ha='center', va='bottom')
+            # -------------------------------------------------------------
+
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\std.png')
+    plt.close('all')
 
 
-def var_pred_plot(data, roi: str, layer: str):
+def var_pred_plot(data, roi: str):
     roi_up = roi.upper()
-    norm = ['none', 'z-score', 'min-max', 'decimal']
-
-    plt.suptitle('Variance - [V1, cnn1] ')
-
+    norm_s = ['none', 'z-score', 'min-max', 'decimal']
     x_label = ['None', 'Z-Score', 'Min-Max', 'Decimal', 'True']
 
-    n_pred_pt = data[roi_up][layer][norm[0]]['pred_pt']
-    z_pred_pt = data[roi_up][layer][norm[1]]['pred_pt']
-    m_pred_pt = data[roi_up][layer][norm[2]]['pred_pt']
-    d_pred_pt = data[roi_up][layer][norm[3]]['pred_pt']
+    plt.suptitle('Variance - [%s]' % roi)
 
-    n_pt_v = numpy.sum(numpy.power(n_pred_pt - numpy.mean(n_pred_pt), 2)) / (1750 * 1000)
-    z_pt_v = numpy.sum(numpy.power(z_pred_pt - numpy.mean(z_pred_pt), 2)) / (1750 * 1000)
-    m_pt_v = numpy.sum(numpy.power(m_pred_pt - numpy.mean(m_pred_pt), 2)) / (1750 * 1000)
-    d_pt_v = numpy.sum(numpy.power(d_pred_pt - numpy.mean(d_pred_pt), 2)) / (1750 * 1000)
+    i = 0
+    for L in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8', 'hmax1', 'hmax2', 'hmax3', 'gist', 'sift']:
+        i += 1
 
-    n_pred_im = data[roi_up][layer][norm[0]]['pred_im']
-    z_pred_im = data[roi_up][layer][norm[1]]['pred_im']
-    m_pred_im = data[roi_up][layer][norm[2]]['pred_im']
-    d_pred_im = data[roi_up][layer][norm[3]]['pred_im']
+        n_pred_pt = data[roi_up][L][norm_s[0]]['pred_pt']
+        z_pred_pt = data[roi_up][L][norm_s[1]]['pred_pt']
+        m_pred_pt = data[roi_up][L][norm_s[2]]['pred_pt']
+        d_pred_pt = data[roi_up][L][norm_s[3]]['pred_pt']
 
-    n_im_v = numpy.sum(numpy.power(n_pred_im - numpy.mean(n_pred_im), 2)) / (500 * 1000)
-    z_im_v = numpy.sum(numpy.power(z_pred_im - numpy.mean(z_pred_im), 2)) / (500 * 1000)
-    m_im_v = numpy.sum(numpy.power(m_pred_im - numpy.mean(m_pred_im), 2)) / (500 * 1000)
-    d_im_v = numpy.sum(numpy.power(d_pred_im - numpy.mean(d_pred_im), 2)) / (500 * 1000)
+        n_pt_v = numpy.sum(numpy.power(n_pred_pt - numpy.mean(n_pred_pt), 2)) / (1750 * 1000)
+        z_pt_v = numpy.sum(numpy.power(z_pred_pt - numpy.mean(z_pred_pt), 2)) / (1750 * 1000)
+        m_pt_v = numpy.sum(numpy.power(m_pred_pt - numpy.mean(m_pred_pt), 2)) / (1750 * 1000)
+        d_pt_v = numpy.sum(numpy.power(d_pred_pt - numpy.mean(d_pred_pt), 2)) / (1750 * 1000)
 
-    true_pt = data[roi_up][layer][norm[0]]['true_pt']
-    true_im = data[roi_up][layer][norm[0]]['true_im']
+        n_pred_im = data[roi_up][L][norm_s[0]]['pred_im']
+        z_pred_im = data[roi_up][L][norm_s[1]]['pred_im']
+        m_pred_im = data[roi_up][L][norm_s[2]]['pred_im']
+        d_pred_im = data[roi_up][L][norm_s[3]]['pred_im']
 
-    t_pt_v = numpy.sum(numpy.power(true_pt - numpy.mean(true_pt), 2)) / (1750 * 1000)
-    t_im_v = numpy.sum(numpy.power(true_im - numpy.mean(true_im), 2)) / (500 * 1000)
+        n_im_v = numpy.sum(numpy.power(n_pred_im - numpy.mean(n_pred_im), 2)) / (500 * 1000)
+        z_im_v = numpy.sum(numpy.power(z_pred_im - numpy.mean(z_pred_im), 2)) / (500 * 1000)
+        m_im_v = numpy.sum(numpy.power(m_pred_im - numpy.mean(m_pred_im), 2)) / (500 * 1000)
+        d_im_v = numpy.sum(numpy.power(d_pred_im - numpy.mean(d_pred_im), 2)) / (500 * 1000)
 
-    p_v_list = [n_pt_v, z_pt_v, m_pt_v, d_pt_v, t_pt_v]
-    i_v_list = [n_im_v, z_im_v, m_im_v, d_im_v, t_im_v]
+        true_pt = data[roi_up][L][norm_s[0]]['true_pt']
+        true_im = data[roi_up][L][norm_s[0]]['true_im']
 
-    plt.subplot(121)
-    plt.title('PT')
-    plt.bar(x_label, p_v_list, color='cornflowerblue')
+        t_pt_v = numpy.sum(numpy.power(true_pt - numpy.mean(true_pt), 2)) / (1750 * 1000)
+        t_im_v = numpy.sum(numpy.power(true_im - numpy.mean(true_im), 2)) / (500 * 1000)
 
-    for x, y in zip(x_label, p_v_list):
-        plt.text(x, y + 0.5, '%.5f' % y, ha='center', va='bottom')
+        p_v_list = [n_pt_v, z_pt_v, m_pt_v, d_pt_v, t_pt_v]
+        i_v_list = [n_im_v, z_im_v, m_im_v, d_im_v, t_im_v]
 
-    plt.subplot(122)
-    plt.title('IM')
-    plt.bar(x_label, i_v_list, color='coral')
+        plt.subplot(5, 4, i)
+        plt.title('%s - PT' % L)
+        plt.bar(x_label, p_v_list, color='cornflowerblue')
 
-    for x, y in zip(x_label, i_v_list):
-        plt.text(x, y + 0.5, '%.5f' % y, ha='center', va='bottom')
+        i += 1
+
+        plt.subplot(5, 4, i)
+        plt.title('%s - IM' % L)
+        plt.bar(x_label, i_v_list, color='coral')
 
 
 def var_train_plot(data, roi: str):
     roi_up = roi.upper()
-    norm = ['none', 'z-score', 'min-max', 'decimal']
+    norm_s = ['none', 'z-score', 'min-max', 'decimal']
 
     loc = data[roi_up]
 
@@ -505,20 +514,20 @@ def var_train_plot(data, roi: str):
 
     plt.subplot(131)
     plt.title('X')
-    plt.bar(norm, x_list, color='cornflowerblue')
-    for x, y in zip(norm, x_list):
+    plt.bar(norm_s, x_list, color='cornflowerblue')
+    for x, y in zip(norm_s, x_list):
         plt.text(x, y + 0.05, '%.05f' % y, ha='center', va='bottom')
 
     plt.subplot(132)
     plt.title('Y')
-    plt.bar(norm, y_list, color='coral')
-    for x, y in zip(norm, y_list):
+    plt.bar(norm_s, y_list, color='coral')
+    for x, y in zip(norm_s, y_list):
         plt.text(x, y + 0.01, '%.05f' % y, ha='center', va='bottom')
 
     plt.subplot(133)
     plt.title('Trend')
-    plt.bar(norm, bias_list, color='forestgreen')
-    for x, y in zip(norm, bias_list):
+    plt.bar(norm_s, bias_list, color='forestgreen')
+    for x, y in zip(norm_s, bias_list):
         plt.text(x, y + 0.05, '%.05f' % y, ha='center', va='bottom')
 
 
@@ -683,54 +692,47 @@ def neg_opt_value_ratio(x_list):
 
 
 # ---------------------------------------------------
-def cor_merged_av_plot(data: dict, roi: str, layer: str):
-    loc = data[roi.upper()][layer]
+def cor_av_plot(data: dict, roi: list, layer: str, mode: str):
+    d_keys = ['cor_pt_av', 'cor_im_av']
+    plt.suptitle('Correlation Coefficient - [%s %s]' % (layer, mode.upper()))
 
-    n_keys = ['none', 'z-score', 'min-max', 'decimal']
-    d_keys = ['cor_pt_av', 'cor_im_av', 'cor_cat_pt_av', 'cor_cat_im_av']
+    cor_all = {}
+    for R in roi:
+        loc = data[R][layer]
+        cor_r = {}
+
+        if mode == 'pt':
+            n_cor = loc['none'][d_keys[0]].reshape(50)
+            z_cor = loc['z-score'][d_keys[0]].reshape(50)
+            m_cor = loc['min-max'][d_keys[0]].reshape(50)
+            d_cor = loc['decimal'][d_keys[0]].reshape(50)
+
+            cor_r = {'None': n_cor, 'Z-Score': z_cor, 'Min-MAX': m_cor, 'Decimal Scaling': d_cor}
+        elif mode == 'im':
+            n_cor = loc['none'][d_keys[1]].reshape(50)
+            z_cor = loc['z-score'][d_keys[1]].reshape(50)
+            m_cor = loc['min-max'][d_keys[1]].reshape(50)
+            d_cor = loc['decimal'][d_keys[1]].reshape(50)
+
+            cor_r = {'None': n_cor, 'Z-Score': z_cor, 'Min-MAX': m_cor, 'Decimal Scaling': d_cor}
+
+        cor_all[R] = cor_r
 
     i = 0
-    plt.suptitle('Correlation for Merged Result')
-
-    for n_key in n_keys:
+    for roi in cor_all:
         i += 1
+        out_list = []
+        for k in cor_all[roi]:
+            out_list.append(cor_all[roi][k])
 
-        cor_pt_av = loc[n_key][d_keys[0]].reshape(50)
-        cor_im_av = loc[n_key][d_keys[1]].reshape(50)
-        cor_cat_pt_av = loc[n_key][d_keys[2]].reshape(50)
-        cor_cat_im_av = loc[n_key][d_keys[3]].reshape(50)
-
-        mean_pt = numpy.mean(cor_pt_av)
-        mean_im = numpy.mean(cor_im_av)
-        mean_cat_pt = numpy.mean(cor_cat_pt_av)
-        mean_cat_im = numpy.mean(cor_cat_im_av)
-
-        mean_set = [mean_pt, mean_im]
-        mean_cat_set = [mean_cat_pt, mean_cat_im]
-
-        x_label_tru = ['mean_pt', 'mean_im']
-        x_label_cat = ['mean_cat_pt', 'mean_cat_im']
-
-        y_lim = 0.13
-
-        plt.subplot(2, 4, i)
-        plt.title(n_key + ' - ' + '[Pred - True]')
-        plt.ylim(0, y_lim)
-        plt.bar(x_label_tru, mean_set, color=['cornflowerblue', 'coral'])
-
-        for x, y in zip(x_label_tru, mean_set):
-            plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
-
-        plt.subplot(2, 4, i + 4)
-        plt.title(n_key + ' - ' + '[Pred - Categories]')
-        plt.ylim(0, y_lim)
-        plt.bar(x_label_cat, mean_cat_set, color=['cornflowerblue', 'coral'])
-
-        for x, y in zip(x_label_cat, mean_cat_set):
-            plt.text(x, y + 0.0005, '%.5f' % y, ha='center', va='bottom')
+        plt.subplot(4, 2, i)
+        plt.title(roi)
+        plt.hist(out_list, alpha=0.4)
+        plt.legend(['None', 'Z-Score', 'Min-Max', 'Decimal Scaling'], loc='best')
+        plt.grid(True)
 
 
-def cor_av_separate_plot(data: dict, roi: list, layer: str):
+def ac_separate_plot(data: dict, roi: list, layer: str):
     d_keys = ['n_cr_pt', 'z_cr_pt', 'm_cr_pt', 'd_cr_pt', 'n_cr_im', 'z_cr_im', 'm_cr_im', 'd_cr_im']
     labels = ['None - [ PT ]', 'Z-Score - [ PT ]', 'Min-Max - [ PT ]', 'Decimal - [ PT ]',
               'None - [ IM ]', 'Z-Score - [ IM ]', 'Min-Max - [ IM ]', 'Decimal - [ IM ]']
@@ -744,7 +746,7 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
     ppa = {}
 
     plt.figure(figsize=(25, 15))
-    plt.suptitle('Correlation Coefficient - [ %s ]' % layer.upper())
+    plt.suptitle('Accuracy - [ %s ]' % layer.upper())
 
     for R in roi:
         target = data[R.upper()][layer]
@@ -799,8 +801,9 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
         i += 1
         plt.subplot(2, 4, i)
 
-        plt.xlabel('Correlation')
+        plt.xlabel('Accuracy')
         plt.ylabel('Images - [ALL=50]')
+        plt.xlim(0, 1.1)
         plt.title(key)
 
         plt.hist(used_data, alpha=0.5)
@@ -808,7 +811,82 @@ def cor_av_separate_plot(data: dict, roi: list, layer: str):
         plt.legend(roi)
 
     plt.tight_layout(rect=[0, 0, 1, 0.99])
-    plt.savefig('plots\\results\\cor_%s_all.png' % layer)
+    plt.savefig('plots\\results\\ac_%s_all.png' % layer)
+    plt.close('all')
+
+
+def ac_average_plot(data: dict, mode: str):
+    roi = ['V1', 'V2', 'V3', 'V4', 'LOC', 'FFA', 'PPA']
+    layers = ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8',
+              'hmax1', 'hmax2', 'hmax3',
+              'gist', 'sift']
+
+    i = 0
+    plt.figure(figsize=(50, 30))
+    plt.suptitle('Accuracy Average')
+
+    for R in roi:
+        i += 1
+        loc = data[R]
+
+        n_all = []
+        z_all = []
+        m_all = []
+        d_all = []
+
+        for L in layers:
+            if mode == 'pt':
+                n_cr = loc[L]['n_cr_pt_av']
+                z_cr = loc[L]['z_cr_pt_av']
+                m_cr = loc[L]['m_cr_pt_av']
+                d_cr = loc[L]['d_cr_pt_av']
+
+                n_all.append(n_cr)
+                z_all.append(z_cr)
+                m_all.append(m_cr)
+                d_all.append(d_cr)
+
+            elif mode == 'im':
+                n_cr = loc[L]['n_cr_im_av']
+                z_cr = loc[L]['z_cr_im_av']
+                m_cr = loc[L]['m_cr_im_av']
+                d_cr = loc[L]['d_cr_im_av']
+
+                n_all.append(n_cr)
+                z_all.append(z_cr)
+                m_all.append(m_cr)
+                d_all.append(d_cr)
+
+            else:
+                print('Unknown mode.')
+                return None
+
+        none = range(0, 100, 10)
+        z_s = range(120, 220, 10)
+        m_m = range(240, 340, 10)
+        d_s = range(360, 460, 10)
+
+        plt.subplot(4, 2, i)
+        plt.title(R + ' - [%s]' % mode.upper())
+
+        plt.bar(none, n_all, alpha=0.4, width=8.5)
+        plt.ylim(0, 1)
+        plt.xticks(none, layers)
+
+        plt.bar(z_s, n_all, alpha=0.4, width=8.5)
+        plt.ylim(0, 1)
+
+        plt.bar(m_m, n_all, alpha=0.4, width=8.5)
+        plt.ylim(0, 1)
+
+        plt.bar(d_s, n_all, alpha=0.4, width=8.5)
+        plt.ylim(0, 1)
+
+        plt.legend(['None', 'Z-Score', 'Min-Max', 'Decimal Scaling'], loc='best')
+        plt.grid(True)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.99])
+    plt.savefig('plots\\results\\ac_av_%s.png' % mode)
     plt.close('all')
 
 
@@ -847,6 +925,110 @@ def cor_cat_plot(data: dict, mode: str):
     plt.tight_layout(rect=[0, 0, 1, 0.99])
     plt.savefig('plots\\results\\cor_cat_%s.png' % mode)
     plt.close('all')
+
+
+def gaussian_distribution_plot(data: dict, roi: str, layer: str):
+    cnn = ['cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8']
+    hmax = ['hmax1', 'hmax2', 'hmax3']
+    others = ['gist', 'sift']
+
+    label = ['None', 'Z-Score', 'Min-Max', 'Decimal Scaling']
+
+    roi_up = roi.upper()
+    i = 1
+
+    if layer == 'cnn':
+        plt.figure(figsize=(20, 40))
+
+        for C in cnn:
+            loc = data[roi_up][C]
+
+            for N in label:
+                term = N[0].lower()
+
+                x = loc[term + '_train']
+                y = loc[term + '_y']
+
+                plt.subplot(8, 2, i)
+                plt.title('fMRI [%s - %s]' % (roi, C))
+                plt.hist(x, alpha=0.3)
+                plt.xlim(-80, 80)
+                plt.legend(label)
+                plt.grid(True)
+
+                plt.subplot(8, 2, i + 1)
+                plt.title('Image Feature [%s - %s]' % (roi, C))
+                plt.hist(y, alpha=0.3)
+                plt.legend(label)
+                plt.grid(True)
+
+            i += 2
+
+        plt.tight_layout()
+        plt.savefig('plots\\results\\train_hist_%s.png' % layer)
+        plt.close('all')
+
+    elif layer == 'hmax':
+        plt.figure(figsize=(20, 15))
+
+        for H in hmax:
+            loc = data[roi_up][H]
+
+            for N in label:
+                term = N[0].lower()
+
+                x = loc[term + '_train']
+                y = loc[term + '_y']
+
+                plt.subplot(8, 2, i)
+                plt.title('fMRI [%s - %s]' % (roi, layer))
+                plt.hist(x, alpha=0.3)
+                plt.xlim(-80, 80)
+                plt.legend(label)
+                plt.grid(True)
+
+                plt.subplot(8, 2, i)
+                plt.title('Image Feature [%s - %s]' % (roi, layer))
+                plt.hist(y, alpha=0.3)
+                plt.legend(label)
+                plt.grid(True)
+
+            i += 2
+
+        plt.tight_layout()
+        plt.savefig('plots\\results\\train_hist_%s.png' % layer)
+        plt.close('all')
+
+    elif layer == 'others':
+        plt.figure(figsize=(20, 4))
+
+        for other in others:
+            loc = data[roi_up][other]
+
+            for N in label:
+                term = N[0].lower()
+
+                x = loc[term + '_train']
+                y = loc[term + '_y']
+
+                plt.subplot(8, 2, i)
+                plt.title('fMRI [%s - %s]' % (roi, layer))
+                plt.hist(x, alpha=0.3)
+                plt.xlim(-80, 80)
+                plt.legend(label)
+                plt.grid(True)
+
+                plt.subplot(8, 2, i)
+                plt.title('Image Feature [%s - %s]' % (roi, layer))
+                plt.hist(y, alpha=0.3)
+                plt.legend(label)
+                plt.grid(True)
+
+            i += 2
+
+        plt.tight_layout()
+        plt.savefig('plots\\results\\train_hist_%s.png' % layer)
+        plt.close('all')
 
 
 # =====================================================================================

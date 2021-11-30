@@ -12,10 +12,6 @@ from bdpy.stats import corrcoef
 import Tools
 
 
-# TODO: find the phenomenon of normalization cause algorithm understand the data or misunderstand the data
-# TODO: find the noise increase or decrease through different normalization technics
-# TODO: Noise precision β: means the distribution of noise. separate -> lower, gather -> higher
-
 def generic_objective_decoding(data_all, img_feature, R, S: str, L: str, N):
     print('Data Preparing...')
 
@@ -50,10 +46,10 @@ def generic_objective_decoding(data_all, img_feature, R, S: str, L: str, N):
 # Algorithm part ==============================================================================
 def get_result(S_data, img_feature, S: str, R, L, N: int):
     tool = Tools.Tool()
-    roi_s = {'VC': 'ROI_VC = 1', 'LVC': 'ROI_LVC = 1', 'HVC': 'ROI_HVC = 1',
-             'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
-             'V4': 'ROI_V4 = 1',
-             'LOC': 'ROI_LOC = 1', 'FFA': 'ROI_FFA = 1', 'PPA': 'ROI_PPA = 1'}
+    roi_dict = {'VC': 'ROI_VC = 1', 'LVC': 'ROI_LVC = 1', 'HVC': 'ROI_HVC = 1',
+                'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
+                'V4': 'ROI_V4 = 1',
+                'LOC': 'ROI_LOC = 1', 'FFA': 'ROI_FFA = 1', 'PPA': 'ROI_PPA = 1'}
 
     voxel = {'VC': 1000, 'LVC': 1000, 'HVC': 1000,
              'V1': 500, 'V2': 500, 'V3': 500,
@@ -62,7 +58,7 @@ def get_result(S_data, img_feature, S: str, R, L, N: int):
 
     # data separate -----------------------------
     cor_voxel = voxel[R]
-    roi_mark = roi_s[R]
+    roi_mark = roi_dict[R]
     x = S_data.select(roi_mark)
 
     data_type = S_data.select('DataType')
@@ -323,10 +319,6 @@ subjects = {'s1': os.path.abspath(folder_dir + 'Subject1.h5'),
             's5': os.path.abspath(folder_dir + 'Subject5.h5'),
             'imageFeature': os.path.abspath(folder_dir + 'ImageFeatures.h5')}
 
-layers = ['cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8',
-          'hmax1', 'hmax2', 'hmax3',
-          'gist', 'sift']
-
 print('=======================================')
 print('Data loading...')
 
@@ -334,6 +326,7 @@ dataset = {}
 image_feature = {}
 file = None
 
+# Read data ------------------------------------------
 for person in subjects:
     file = h5py.File(subjects[person], 'r')
 
@@ -359,12 +352,14 @@ print('s1: %s\n'
                   dataset['s3'].dataset.shape,
                   dataset['s4'].dataset.shape,
                   dataset['s5'].dataset.shape))
+# ----------------------------------------------------
 
-# ---------------------------------------------------------------
+# Generic Object Decoding -----------------------------------
 
-targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
-           'V4': 'ROI_V4 = 1',
-           'LOC': 'ROI_LOC = 1', 'FFA': 'ROI_FFA = 1', 'PPA': 'ROI_PPA = 1'}
+layers = ['cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8',
+          'hmax1', 'hmax2', 'hmax3',
+          'gist', 'sift']
+roi_s = ['VC', 'LVC', 'HVC', 'V1', 'V2', 'V3', 'V4', 'LOC', 'FFA', 'PPA']
 
 # norm_type (for different normalization):
 #   0:     none
@@ -373,9 +368,10 @@ targets = {'V1': 'ROI_V1 = 1', 'V2': 'ROI_V2 = 1', 'V3': 'ROI_V3 = 1',
 #   3:     decimal
 #   all:   all of them (no return)
 
-for layer in ['cnn1', 'cnn2', 'cnn4', 'cnn6', 'cnn8']:
-    for t_roi in ['VC']:
+for layer in layers:  # layer setting
+    for t_roi in roi_s:  # ROI setting
         generic_objective_decoding(data_all=dataset,
                                    img_feature=image_feature,
                                    R=t_roi, S='s1', L=layer,
                                    N='all')
+# -----------------------------------------------------------

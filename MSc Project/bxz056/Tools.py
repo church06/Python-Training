@@ -87,7 +87,7 @@ class Tool:
             L_dict = {}
 
             for L in l_keys:
-                L_dict = read_folder(group[R][L], mode='dataset')
+                L_dict[L] = read_folder(group[R][L], mode='dataset')
 
             output[R] = L_dict
 
@@ -174,9 +174,11 @@ class Tool:
         keys = ['cat_pt_av', 'cat_im_av', 'cat_pt_label', 'cat_im_label']
 
         output = {}
-
-        for key in keys:
-            output[key] = numpy.array(target[key])
+        for L in list(target.keys()):
+            l_dict = {}
+            for key in keys:
+                l_dict[key] = numpy.array(target[L][key])
+            output[L] = l_dict
 
         file.close()
         return output
@@ -375,48 +377,58 @@ class Tool:
         img_feature = bdpy.BData(self.data_path + 'ImageFeatures.h5')
         # ----------------------------------------------------
 
-        layer_feature = img_feature.select('cnn1')
-
         data_type = subject.select('DataType')
         labels = subject.select('stimulus_id')
 
-        i_test_seen = (data_type == 2).flatten()
-        i_test_im = (data_type == 3).flatten()
+        for L in ['cnn1', 'cnn2', 'cnn3', 'cnn4', 'cnn5', 'cnn6', 'cnn7', 'cnn8',
+                  'hmax1', 'hmax2', 'hmax3',
+                  'gist', 'sift']:
 
-        # ----------------------------------------------------------------------------------------------------------
-        # Copy from
-        # https://github.com/KamitaniLab/GenericObjectDecoding/blob/master/code/python/analysis_FeaturePrediction.py
-        # Do some refactor
+            layer_feature = img_feature.select(L)
 
-        # Get averaged predicted feature
-        test_label_pt = labels[i_test_seen, :].flatten()
-        test_label_im = labels[i_test_im, :].flatten()
+            i_test_seen = (data_type == 2).flatten()
+            i_test_im = (data_type == 3).flatten()
 
-        # Get category averaged features
-        cat_labels_pt = numpy.vstack([int(pt) for pt in test_label_pt])  # Category labels (perception test)
-        cat_labels_im = numpy.vstack([int(im) for im in test_label_im])  # Category labels (perception test)
+            # ----------------------------------------------------------------------------------------------------------
+            # Copy from
+            # https://github.com/KamitaniLab/GenericObjectDecoding/blob/master/code/python/analysis_FeaturePrediction.py
+            # Do some refactor
 
-        cat_pt_label = numpy.unique(cat_labels_pt)
-        cat_im_label = numpy.unique(cat_labels_im)
+            # Get averaged predicted feature
+            test_label_pt = labels[i_test_seen, :].flatten()
+            test_label_im = labels[i_test_im, :].flatten()
 
-        cat_labels = img_feature.select('CatID')  # Category labels in image features
-        ind_cat_av = (img_feature.select('FeatureType') == 3).flatten()
+            # Get category averaged features
+            cat_labels_pt = numpy.vstack([int(pt) for pt in test_label_pt])  # Category labels (perception test)
+            cat_labels_im = numpy.vstack([int(im) for im in test_label_im])  # Category labels (perception test)
 
-        c_pt_av = get_refdata(layer_feature[ind_cat_av, :], cat_labels[ind_cat_av, :], cat_pt_label)
-        c_im_av = get_refdata(layer_feature[ind_cat_av, :], cat_labels[ind_cat_av, :], cat_im_label)
-        # ----------------------------------------------------------------------------------------------------------
+            cat_pt_label = numpy.unique(cat_labels_pt)
+            cat_im_label = numpy.unique(cat_labels_im)
 
-        temp_dict = {groups[0]: c_pt_av, groups[1]: c_im_av,
-                     groups[2]: cat_pt_label, groups[3]: cat_im_label}
+            cat_labels = img_feature.select('CatID')  # Category labels in image features
+            ind_cat_av = (img_feature.select('FeatureType') == 3).flatten()
 
-        for name in groups:
-            try:
-                print("Create ['%s']." % name)
-                out_file.create_dataset(name, data=temp_dict[name])
-            except RuntimeError:
-                print("['%s'] already exists. Remove file and get new data" % name)
-                del out_file[name]
-                out_file.create_dataset(name, data=temp_dict[name])
+            c_pt_av = get_refdata(layer_feature[ind_cat_av, :], cat_labels[ind_cat_av, :], cat_pt_label)
+            c_im_av = get_refdata(layer_feature[ind_cat_av, :], cat_labels[ind_cat_av, :], cat_im_label)
+            # ----------------------------------------------------------------------------------------------------------
+
+            temp_dict = {groups[0]: c_pt_av, groups[1]: c_im_av,
+                         groups[2]: cat_pt_label, groups[3]: cat_im_label}
+
+            for name in groups:
+                try:
+                    layer = out_file.create_group(L)
+                except ValueError:
+                    print("['%s'] already exists." % name)
+                    layer = out_file[L]
+
+                try:
+                    print("Create ['%s']." % name)
+                    layer.create_dataset(name, data=temp_dict[name])
+                except RuntimeError:
+                    print("['%s'] already exists. Remove file and get new data" % name)
+                    del layer[name]
+                    layer.create_dataset(name, data=temp_dict[name])
 
         file.close()
 

@@ -13,3 +13,4 @@ Training/eeg_detector/
 GenericObjectDecoding/
 *.pyc
 *.hdf5
+*.zip
