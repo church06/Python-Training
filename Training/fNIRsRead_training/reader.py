@@ -1,10 +1,3 @@
-from select import select
-from typing_extensions import Self
-import mne
-import matplotlib as plt
-import pandas
-
-
 class fNIRs_DataReader:
     def __init__(self):
         self.data_path = "G://Entrance//Coding//datasets//fNIRs//rob-luke-BIDS-NIRS-Tapping//"
