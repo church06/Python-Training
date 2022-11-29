@@ -1,5 +1,5 @@
+import mne
 import reader
 
-tool = reader.fNIRs_DataReader()
-tool.get_subs()
-tool.get_data('01')
+path = reader.read_data(disk='E:', sub=1)
+data = mne.io.read_raw_snirf()
