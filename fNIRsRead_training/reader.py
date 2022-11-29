@@ -12,3 +12,5 @@ def read_data(disk: str, sub: int, formate: str):
                  'tsv': '//sub-{0}_scans.tsv'.format('0' + str(sub))}
 
     return data_path + data_sub[sub] + data_type[formate]
+
+
