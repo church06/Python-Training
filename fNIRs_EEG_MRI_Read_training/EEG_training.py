@@ -1,6 +1,14 @@
 import os
 import torch
+from torch import nn
 import pandas as pd
+
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.flatten = nn.Flatten()
+
 
 path = 'E:/Coding/datasets/EEG/Kaggle_EEG_Alcohol/SMNI_CMI_TRAIN/Train/'
 file_name = os.listdir(path)

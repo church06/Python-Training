@@ -217,5 +217,3 @@ with torch.no_grad():
     pred = model(test_x)
     predicted, actual = classes[pred[0].argmax(0)], classes[test_y]
     print(f'Predicted: {predicted}, Actual: {actual}')
-
-
