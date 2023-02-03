@@ -1,8 +1,9 @@
 import os
 import torch
+from matplotlib import gridspec
 from torch import nn
 import pandas as pd
-import itertools
+import matplotlib.pyplot as plt
 
 
 def get_data():
@@ -35,11 +36,11 @@ def get_data():
     return data_dict_fn
 
 
-def split_data(data_input: dict):
+def split_data(data_input_fn: dict):
     data_split_fn = {}
 
     for i_fn in range(1, 469):
-        sbj_fn = data_input[i_fn]
+        sbj_fn = data_input_fn[i_fn]
         key_list_fn = sbj_fn['sensor position'].unique().tolist()
         sbj_split_fn = {}
 
@@ -51,12 +52,64 @@ def split_data(data_input: dict):
     return data_split_fn
 
 
+def show_data_fig(data_input_fn):
+    plt.figure()
+    plt.suptitle('FP1')
+    for i in range(1, 13):
+        data_show_fn = data_input_fn[i]['FP1']['sensor value'].tolist()
+        time_show_fn = data_input_fn[i]['FP1']['time'].tolist()
+
+        plt.subplot(3, 4, i)
+        plt.plot(time_show_fn, data_show_fn)
+        plt.title(f"Subject: {'%03d' % i}")
+        plt.grid(True)
+
+    plt.show()
+
+
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.flatten = nn.Flatten()
+        self.flatten_fn = nn.Flatten()
+        self.model_fn = nn.Sequential(
+            nn.Linear(in_features=512, out_features=256),
+            nn.ReLU(),
+            nn.Linear(in_features=256, out_features=128),
+            nn.ReLU(),
+            nn.Linear(in_features=128, out_features=64),
+            nn.ReLU(),
+            nn.Linear(in_features=64, out_features=2)
+        )
+
+    def forward(self, in_fn):
+        x_fn = self.flatten_fn(in_fn)
+        logits_fn = self.model_fn(x_fn)
+        return logits_fn
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"Use device: {device}")
 
 data = get_data()
+
+model = Model().to(device)
+print(model)
+
+x = torch.rand(1, 2, 256, device=device)
+logits = model(x)
+pred_prob = nn.Softmax(dim=1)(logits)
+y_pred = pred_prob.argmax(1)
+print(f'Predict Class: {y_pred}')
+
+input_channel = torch.rand(3, 2, 256)
+print(input_channel.size())
+
+flatten = nn.Flatten()
+flatten_channel = flatten(input_channel)
+print(flatten_channel.size())
+
+layer_1 = nn.Linear(in_features=2*256, out_features=2)
+hidden_1 = layer_1(flatten_channel)
+print(hidden_1.size())
+
+
