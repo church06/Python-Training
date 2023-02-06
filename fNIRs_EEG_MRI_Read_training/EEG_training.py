@@ -4,6 +4,7 @@ from matplotlib import gridspec
 from torch import nn
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy
 
 
 def get_data():
@@ -61,7 +62,7 @@ def show_data_fig(data_input_fn):
 
         plt.subplot(3, 4, i)
         plt.plot(time_show_fn, data_show_fn)
-        plt.title(f"Subject: {'%03d' % i}")
+        plt.title(f"Subject: {'%03d' % i}", end='')
         plt.grid(True)
 
     plt.show()
@@ -72,13 +73,14 @@ class Model(nn.Module):
         super().__init__()
         self.flatten_fn = nn.Flatten()
         self.model_fn = nn.Sequential(
-            nn.Linear(in_features=512, out_features=256),
+            nn.Flatten(),
+            nn.Linear(in_features=3*256, out_features=3*256),
             nn.ReLU(),
-            nn.Linear(in_features=256, out_features=128),
+            nn.Linear(in_features=3*256, out_features=int((3*256)/2)),
             nn.ReLU(),
-            nn.Linear(in_features=128, out_features=64),
+            nn.Linear(in_features=int((3*256)/2), out_features=int((3*256)/4)),
             nn.ReLU(),
-            nn.Linear(in_features=64, out_features=2)
+            nn.Linear(in_features=int((3*256)/4), out_features=2)
         )
 
     def forward(self, in_fn):
@@ -101,6 +103,7 @@ pred_prob = nn.Softmax(dim=1)(logits)
 y_pred = pred_prob.argmax(1)
 print(f'Predict Class: {y_pred}')
 
+print('Function of Flatten layer'.ljust(20, '='))
 input_channel = torch.rand(3, 2, 256)
 print(input_channel.size())
 
@@ -111,5 +114,14 @@ print(flatten_channel.size())
 layer_1 = nn.Linear(in_features=2*256, out_features=2)
 hidden_1 = layer_1(flatten_channel)
 print(hidden_1.size())
+print(''.ljust(20, '='))
+
+print(f'Before ReLU: {hidden_1}\n\n')
+hidden_1_relu = nn.ReLU()(hidden_1)
+print(f'After ReLU: {hidden_1_relu}')
+
+for sbj in data:
+    for channel in data[sbj]:
+        data_channel = data[sbj][channel][['sensor value', 'subject identifier', 'time']].to_numpy()
 
 
