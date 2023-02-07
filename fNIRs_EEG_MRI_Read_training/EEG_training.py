@@ -1,10 +1,10 @@
 import os
 import torch
-from matplotlib import gridspec
 from torch import nn
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy
+from torch.utils.data import DataLoader
 
 
 def get_data():
@@ -62,10 +62,22 @@ def show_data_fig(data_input_fn):
 
         plt.subplot(3, 4, i)
         plt.plot(time_show_fn, data_show_fn)
-        plt.title(f"Subject: {'%03d' % i}", end='')
+        plt.title(f"Subject: {'%03d' % i}", end='\r')
         plt.grid(True)
 
     plt.show()
+
+
+def train_model(input_data_fn, model_fn, loss_fn, optimizer_fn, batch_fn):
+    for sbj_fn in input_data_fn:
+        for channel_fn in input_data_fn[sbj_fn]:
+            x_fn = input_data_fn[sbj_fn][channel_fn][['sensor value', 'time']].to_numpy()
+            y_fn = input_data_fn[sbj_fn][channel_fn]['subject identifier'].to_numpy()
+
+            sbj_dataloader_fn = DataLoader(x_fn, y_fn)
+            model_fn.train()
+            for batch_fn, (x_to_model_fn, y_to_model_fn) in enumerate(sbj_dataloader_fn):
+
 
 
 class Model(nn.Module):
@@ -73,14 +85,17 @@ class Model(nn.Module):
         super().__init__()
         self.flatten_fn = nn.Flatten()
         self.model_fn = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(in_features=3*256, out_features=3*256),
-            nn.ReLU(),
-            nn.Linear(in_features=3*256, out_features=int((3*256)/2)),
-            nn.ReLU(),
-            nn.Linear(in_features=int((3*256)/2), out_features=int((3*256)/4)),
-            nn.ReLU(),
-            nn.Linear(in_features=int((3*256)/4), out_features=2)
+            nn.Linear(in_features=3 * 256,
+                      out_features=3 * 256),
+
+            nn.Linear(in_features=3 * 256,
+                      out_features=int((3 * 256) / 2)),
+
+            nn.Linear(in_features=int((3 * 256) / 2),
+                      out_features=int((3 * 256) / 4)),
+
+            nn.Linear(in_features=int((3 * 256) / 4),
+                      out_features=2)
         )
 
     def forward(self, in_fn):
@@ -111,7 +126,7 @@ flatten = nn.Flatten()
 flatten_channel = flatten(input_channel)
 print(flatten_channel.size())
 
-layer_1 = nn.Linear(in_features=2*256, out_features=2)
+layer_1 = nn.Linear(in_features=2 * 256, out_features=2)
 hidden_1 = layer_1(flatten_channel)
 print(hidden_1.size())
 print(''.ljust(20, '='))
@@ -119,9 +134,3 @@ print(''.ljust(20, '='))
 print(f'Before ReLU: {hidden_1}\n\n')
 hidden_1_relu = nn.ReLU()(hidden_1)
 print(f'After ReLU: {hidden_1_relu}')
-
-for sbj in data:
-    for channel in data[sbj]:
-        data_channel = data[sbj][channel][['sensor value', 'subject identifier', 'time']].to_numpy()
-
-
