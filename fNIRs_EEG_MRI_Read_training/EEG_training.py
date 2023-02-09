@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import torch.utils.data
 
 
-def trains_print():
+def trainings_print():
     print('Function of Flatten layer'.ljust(20, '='))
     input_channel = torch.rand(3, 2, 256)
     print(input_channel.size())
@@ -54,6 +54,8 @@ def get_data():
 
         print(f"Subject No.{'%03d' % name_int_fn} State: {data_fn['subject identifier'].unique()}", end='\r')
 
+    print()
+    print('Done.')
     return data_dict_fn
 
 
@@ -61,15 +63,33 @@ def formative_data_to_train(input_data_fn: dict):
     data_output_fn = {}
 
     for index_sbj_fn in input_data_fn:
+        sbj_dict_fn = {}
         chanls = input_data_fn[index_sbj_fn]['sensor position'].unique().tolist()
         for_x_fn = input_data_fn[index_sbj_fn]
         for_y_fn = input_data_fn[index_sbj_fn]
-        x_tensor = torch.empty()
-        y_tensor = torch.empty()
+        x_tensor = []
+        y_tensor = []
 
         for chanl in chanls:
-            x_fn = for_x_fn[for_x_fn['sensor position'] == chanl]['sensor value', 'time']
-            y_fn = for_y_fn[for_y_fn['sensor position'] == chanl]['subject identifier']
+            x_fn = torch.tensor(for_x_fn[for_x_fn['sensor position'] == chanl][['sensor value', 'time']].to_numpy())
+            y_fn = for_y_fn[for_y_fn['sensor position'] == chanl]['subject identifier'].to_numpy()
+
+            y_fn[y_fn == 'a'] = 1
+            y_fn[y_fn == 'c'] = 0
+            y_fn = torch.tensor(y_fn.astype(numpy.int8))
+
+            x_tensor.append(x_fn)
+            y_tensor.append(y_fn)
+            print(f"Subject: {index_sbj_fn:03d} | Channel: {chanl.ljust(3, ' ')} | "
+                  f"X tensor: {len(x_tensor) :03d} | Y tensor: {len(y_tensor):03d}",
+                  end='\r')
+        print()
+
+        sbj_dict_fn['x'] = torch.stack(x_tensor)
+        sbj_dict_fn['y'] = torch.stack(y_tensor)
+        data_output_fn[index_sbj_fn] = sbj_dict_fn
+    print()
+    print('Done.')
 
     return data_output_fn
 
@@ -153,13 +173,11 @@ data = get_data()
 data_formative = formative_data_to_train(data)
 
 model = Model().to(device)
-print(model)
-
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 loss = nn.CrossEntropyLoss()
+print(model)
 
 epochs = 15
 for epoch in range(epochs):
     print(f"{''.ljust(20, '-')}\nEpoch {epoch + 1}")
-    train_model(data, model, loss, optimizer, device)
 print('Done')
