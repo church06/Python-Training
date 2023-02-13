@@ -59,14 +59,14 @@ def get_data():
     return data_dict_fn
 
 
-def formative_data_to_train(input_data_fn: dict):
-    data_output_fn = {}
+def formative_data_to_train(data_in_fn: dict):
+    data_formative_fn = {}
 
-    for index_sbj_fn in input_data_fn:
+    for index_sbj_fn in data_in_fn:
         sbj_dict_fn = {}
-        chanls = input_data_fn[index_sbj_fn]['sensor position'].unique().tolist()
-        for_x_fn = input_data_fn[index_sbj_fn]
-        for_y_fn = input_data_fn[index_sbj_fn]
+        chanls = data_in_fn[index_sbj_fn]['sensor position'].unique().tolist()
+        for_x_fn = data_in_fn[index_sbj_fn]
+        for_y_fn = data_in_fn[index_sbj_fn]
         x_tensor = []
         y_tensor = []
 
@@ -87,21 +87,22 @@ def formative_data_to_train(input_data_fn: dict):
 
         sbj_dict_fn['x'] = torch.stack(x_tensor)
         sbj_dict_fn['y'] = torch.stack(y_tensor)
-        data_output_fn[index_sbj_fn] = sbj_dict_fn
+        data_formative_fn[index_sbj_fn] = sbj_dict_fn
+
     print()
     print('Done.')
 
-    return data_output_fn
+    return data_formative_fn
 
 
-def show_data_fig(data_input_fn):
+def show_data_fig(data_in_fn):
     for i in range(1, 3):
         plt.figure()
         plt.suptitle('FP1')
-        for channel_fn in data_input_fn[i]['sensor position'].unique().tolist():
-            _data_channel_fn = data_input_fn[i][data_input_fn[i]['sensor position'] == channel_fn]
-            data_show_fn = _data_channel_fn['sensor value'].tolist()
-            time_show_fn = data_input_fn[i]['FP1']['time'].tolist()
+        for chanl_fn in data_in_fn[i]['sensor position'].unique().tolist():
+            data_chanl_fn = data_in_fn[i][data_in_fn[i]['sensor position'] == chanl_fn]
+            data_show_fn = data_chanl_fn['sensor value'].tolist()
+            time_show_fn = data_in_fn[i]['FP1']['time'].tolist()
 
             plt.subplot(3, 4, i)
             plt.plot(time_show_fn, data_show_fn)
@@ -111,35 +112,18 @@ def show_data_fig(data_input_fn):
         plt.show()
 
 
-def train_model(input_data_fn, model_fn, input_loss_fn, input_optimizer_fn, device_fn):
-    for sbj_fn in input_data_fn:
+def train_model(data_in_fn, model_fn, input_loss_fn, input_optimizer_fn, device_fn):
+    for sbj_fn in data_in_fn:
         model_fn.train()
 
-        x_fn = input_data_fn[sbj_fn][['sensor value', 'time']].to_numpy()
-        y_fn = input_data_fn[sbj_fn]['subject identifier'].to_numpy()
-        y_fn[y_fn == 'a'] = 1
-        y_fn[y_fn == 'c'] = 0
+        x_all_fn = data_in_fn[sbj_fn]['x']
+        y_all_fn = data_in_fn[sbj_fn]['y']
 
-        sbj_dataset_fn = torch.utils.data.TensorDataset(x_fn, y_fn)
-        sbj_dataloader_fn = DataLoader(dataset=sbj_dataset_fn,
-                                       batch_size=256,
-                                       shuffle=True)
+        for chanl_fn in range(64):
+            x_fn = x_all_fn[chanl_fn]
+            y_gn = y_all_fn[chanl_fn]
 
-        size_fn = len(x_fn)
 
-        for batch_fn, (x_to_model_fn, y_to_model_fn) in enumerate(sbj_dataloader_fn):
-            x_to_model_fn, y_to_model_fn = x_to_model_fn.to(device_fn), y_to_model_fn.to(device_fn)
-
-            pred_fn = model_fn(x_to_model_fn)
-            loss_fn = input_loss_fn(pred_fn, y_fn)
-
-            input_optimizer_fn.zero_grad()
-            loss_fn.bacjward()
-            input_optimizer_fn.step()
-
-            if batch_fn % 100 == 0:
-                loss_fn, current_fn = loss_fn.item(), batch_fn * len(x_fn)
-                print(f'Loss: {loss_fn: >7d} [{current_fn: 5d}/{size_fn: >5d}]')
 
 
 class Model(nn.Module):
@@ -147,17 +131,13 @@ class Model(nn.Module):
         super().__init__()
         self.flatten_fn = nn.Flatten()
         self.model_fn = nn.Sequential(
-            nn.Linear(in_features=3 * 256,
-                      out_features=3 * 256),
+            nn.Linear(in_features=256 * 2, out_features=256 * 2),
 
-            nn.Linear(in_features=3 * 256,
-                      out_features=int((3 * 256) / 2)),
+            nn.Linear(in_features=256 * 2, out_features=int((256 * 2) / 2)),
 
-            nn.Linear(in_features=int((3 * 256) / 2),
-                      out_features=int((3 * 256) / 4)),
+            nn.Linear(in_features=int((256 * 2) / 2), out_features=int((256 * 2) / 4)),
 
-            nn.Linear(in_features=int((3 * 256) / 4),
-                      out_features=2)
+            nn.Linear(in_features=int((256 * 2) / 4), out_features=2)
         )
 
     def forward(self, in_fn):
@@ -169,8 +149,7 @@ class Model(nn.Module):
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Use device: {device}")
 
-data = get_data()
-data_formative = formative_data_to_train(data)
+data = formative_data_to_train(get_data())
 
 model = Model().to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
@@ -179,5 +158,6 @@ print(model)
 
 epochs = 15
 for epoch in range(epochs):
+    train_model(data, model, loss, optimizer, device)
     print(f"{''.ljust(20, '-')}\nEpoch {epoch + 1}")
 print('Done')
