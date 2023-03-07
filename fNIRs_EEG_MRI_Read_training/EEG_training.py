@@ -124,8 +124,6 @@ def train_model(data_in_fn, model_fn, input_loss_fn, input_optimizer_fn, device_
             y_gn = y_all_fn[chanl_fn]
 
 
-
-
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
